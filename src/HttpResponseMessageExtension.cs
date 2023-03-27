@@ -1,11 +1,10 @@
 ﻿using System;
 using System.Diagnostics.Contracts;
 using System.Net.Http;
-using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Serilog;
-using Soenneker.Json.OptionsCollection;
+using Soenneker.Utils.Json;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace Soenneker.Extensions.HttpResponseMessage;
@@ -47,7 +46,7 @@ public static class HttpResponseMessageExtension
         {
             content = await response.Content.ReadAsStringAsync();
 
-            object? result = JsonSerializer.Deserialize(content, serializationType, JsonOptionsCollection.WebOptions);
+            object? result = JsonUtil.Deserialize(content, serializationType);
 
             if (result == null)
                 throw new NullReferenceException("JSON deserialization was null");
@@ -80,7 +79,7 @@ public static class HttpResponseMessageExtension
             if (string.IsNullOrEmpty(content))
                 throw new Exception("Trying to deserialize empty string");
 
-            object? result = JsonSerializer.Deserialize(content, typeof(T), JsonOptionsCollection.WebOptions);
+            object? result = JsonUtil.Deserialize(content, typeof(T));
 
             if (result == null)
                 throw new NullReferenceException("JSON object after deserializing was null");
