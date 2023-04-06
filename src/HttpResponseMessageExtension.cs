@@ -4,11 +4,15 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Serilog;
+using Soenneker.Extensions.String;
 using Soenneker.Utils.Json;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace Soenneker.Extensions.HttpResponseMessage;
 
+/// <summary>
+/// A collection of helpful HttpResponseMessage extension methods
+/// </summary>
 public static class HttpResponseMessageExtension
 {
     /// <summary>
@@ -76,7 +80,7 @@ public static class HttpResponseMessageExtension
         {
             content = await response.Content.ReadAsStringAsync();
 
-            if (string.IsNullOrEmpty(content))
+            if (content.IsNullOrEmpty())
                 throw new Exception("Trying to deserialize empty string");
 
             object? result = JsonUtil.Deserialize(content, typeof(T));
