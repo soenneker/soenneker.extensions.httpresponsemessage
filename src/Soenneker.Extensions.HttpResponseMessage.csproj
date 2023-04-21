@@ -44,7 +44,7 @@
 
         <PackageReference Include="Soenneker.Enums.JsonOptions" Version="1.0.3" />
 
-        <PackageReference Include="Soenneker.Extensions.String" Version="1.0.34" />
+        <PackageReference Include="Soenneker.Extensions.String" Version="1.0.37" />
 
         <PackageReference Include="Soenneker.Json.OptionsCollection" Version="1.0.5" />
 
