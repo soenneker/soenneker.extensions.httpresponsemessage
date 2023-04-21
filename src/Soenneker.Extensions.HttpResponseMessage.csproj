@@ -46,7 +46,7 @@
 
         <PackageReference Include="Soenneker.Extensions.String" Version="1.0.37" />
 
-        <PackageReference Include="Soenneker.Json.OptionsCollection" Version="1.0.5" />
+        <PackageReference Include="Soenneker.Json.OptionsCollection" Version="1.0.6" />
 
         <PackageReference Include="Soenneker.Utils.Json" Version="1.0.22" />
     </ItemGroup>
