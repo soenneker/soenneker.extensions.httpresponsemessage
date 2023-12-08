@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using Soenneker.Extensions.String;
+using Soenneker.Extensions.Task;
 using Soenneker.Utils.Json;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
 
@@ -21,12 +22,12 @@ public static class HttpResponseMessageExtension
     /// TODO: More work here, we should be looking at ProblemDetails and such
     /// </summary>
     /// <exception cref="HttpRequestException"></exception>
-    public static async ValueTask EnsureSuccess(this System.Net.Http.HttpResponseMessage message, ILogger? logger = null)
+    public static async System.Threading.Tasks.ValueTask EnsureSuccess(this System.Net.Http.HttpResponseMessage message, ILogger? logger = null)
     {
         if (message.IsSuccessStatusCode)
             return;
 
-        string content = await message.Content.ReadAsStringAsync();
+        string content = await message.Content.ReadAsStringAsync().NoSync();
 
         if (logger != null)
             logger.LogInformation("{content}", content);
@@ -48,7 +49,7 @@ public static class HttpResponseMessageExtension
 
         try
         {
-            content = await response.Content.ReadAsStringAsync();
+            content = await response.Content.ReadAsStringAsync().NoSync();
 
             object? result = JsonUtil.Deserialize(content, serializationType);
 
@@ -78,7 +79,7 @@ public static class HttpResponseMessageExtension
 
         try
         {
-            content = await response.Content.ReadAsStringAsync();
+            content = await response.Content.ReadAsStringAsync().NoSync();
 
             if (content.IsNullOrEmpty())
                 throw new Exception("Trying to deserialize empty string");
@@ -108,7 +109,7 @@ public static class HttpResponseMessageExtension
     {
         try
         {
-            string content = await response.Content.ReadAsStringAsync();
+            string content = await response.Content.ReadAsStringAsync().NoSync();
 
             return content;
         }
@@ -122,9 +123,9 @@ public static class HttpResponseMessageExtension
     /// <summary>
     /// Shorthand for Log.Debug(response.Content.ReadAsStringAsync(). Not exception safe.
     /// </summary>
-    public static async ValueTask LogResponse(this System.Net.Http.HttpResponseMessage response)
+    public static async System.Threading.Tasks.ValueTask LogResponse(this System.Net.Http.HttpResponseMessage response)
     {
-        string content = await response.Content.ReadAsStringAsync();
+        string content = await response.Content.ReadAsStringAsync().NoSync();
 
         Log.Debug("{content}", content);
     }
