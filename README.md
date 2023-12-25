@@ -8,5 +8,5 @@
 ## Installation
 
 ```
-Install-Package Soenneker.Extensions.HttpResponseMessage
+dotnet add package Soenneker.Extensions.HttpResponseMessage
 ```
