@@ -42,6 +42,6 @@
 
         <PackageReference Include="Serilog" Version="3.1.1" />
 
-        <PackageReference Include="Soenneker.Utils.Json" Version="2.1.624" />
+        <PackageReference Include="Soenneker.Utils.Json" Version="2.1.625" />
     </ItemGroup>
 </Project>
