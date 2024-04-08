@@ -40,23 +40,27 @@ public static class HttpResponseMessageExtension
     [Pure]
     public static async ValueTask<TResponse?> To<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null)
     {
-        string? content = null;
+        string? content = await response.ToStringSafe().NoSync();
+
+        if (content.IsNullOrEmpty())
+        {
+            logger?.LogWarning("Trying to deserialize null/empty string for type ({type}), skipping", typeof(TResponse).Name);
+            return default;
+        }
 
         try
         {
-            content = await response.ToStringStrict().NoSync();
-
             var result = JsonUtil.Deserialize<TResponse>(content);
 
-            if (result == null)
-            {
-                logger?.LogWarning("Deserialization of type ({type}) resulted in null, content: {responseContent}", typeof(TResponse).Name, content);
-                return default;
-            }
+            if (result != null)
+                return result;
+
+            logger?.LogWarning("Deserialization of type ({type}) resulted in null, status code: {code}, content: {responseContent}", typeof(TResponse).Name, (int) response.StatusCode, content);
+            return default;
         }
         catch (Exception e) // TODO: get more strict with exception
         {
-            logger?.LogError(e, "Could not read and parse content of type {type}, status code: {code}, with content: {content}", typeof(TResponse).Name, (int) response.StatusCode, content);
+            logger?.LogError(e, "Deserialization of type {type} failed, status code: {code}, with content: {content}", typeof(TResponse).Name, (int) response.StatusCode, content);
         }
 
         return default;
@@ -69,15 +73,13 @@ public static class HttpResponseMessageExtension
     /// <exception cref="Exception"></exception>
     public static async ValueTask<TResponse> ToStrict<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null)
     {
-        string? content = null;
+        string? content = await response.ToStringStrict().NoSync();
+
+        if (content.IsNullOrEmpty())
+            throw new JsonException($"Trying to deserialize null/empty string for type ({typeof(TResponse).Name}), skipping");
 
         try
         {
-            content = await response.ToStringStrict().NoSync();
-
-            if (content.IsNullOrEmpty())
-                throw new JsonException($"Trying to deserialize empty string for type ({typeof(TResponse).Name}), skipping");
-
             var result = JsonUtil.Deserialize<TResponse>(content);
 
             if (result != null)
@@ -85,7 +87,7 @@ public static class HttpResponseMessageExtension
         }
         catch (Exception e)
         {
-            logger?.LogError(e, "Could not read and parse content of type {type}, with content: {content}", typeof(TResponse).Name, content);
+            logger?.LogError(e, "Deserialization of type {type} failed, status code: {code}, with content: {content}", typeof(TResponse).Name, (int) response.StatusCode, content);
             throw;
         }
 
