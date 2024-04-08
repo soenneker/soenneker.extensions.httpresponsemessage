@@ -1,11 +1,12 @@
 ﻿using System;
 using System.Diagnostics.Contracts;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Serilog;
 using Soenneker.Extensions.String;
 using Soenneker.Extensions.Task;
+using Soenneker.Extensions.ValueTask;
 using Soenneker.Utils.Json;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
 
@@ -27,77 +28,69 @@ public static class HttpResponseMessageExtension
         if (message.IsSuccessStatusCode)
             return;
 
-        string content = await message.Content.ReadAsStringAsync().NoSync();
+        string content = await message.ToStringStrict().NoSync();
 
-        if (logger != null)
-            logger.LogInformation("{content}", content);
-        else
-            Log.Logger.Error(content);
+        logger?.LogInformation("HTTP Content: {content}", content);
 
         message.EnsureSuccessStatusCode();
     }
 
     /// <summary>
-    /// Exception safe. Typically what we want if we're actually using this in code
+    /// Exception safe. This is typically what we want for live code.
     /// </summary>
     [Pure]
-    public static async ValueTask<T?> To<T>(this System.Net.Http.HttpResponseMessage response)
+    public static async ValueTask<TResponse?> To<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null)
     {
         string? content = null;
 
-        Type serializationType = typeof(T);
-
         try
         {
-            content = await response.Content.ReadAsStringAsync().NoSync();
+            content = await response.ToStringStrict().NoSync();
 
-            object? result = JsonUtil.Deserialize(content, serializationType);
+            var result = JsonUtil.Deserialize<TResponse>(content);
 
             if (result == null)
-                throw new NullReferenceException("JSON deserialization was null");
-
-            var castResult = (T)result;
-
-            return castResult;
+            {
+                logger?.LogWarning("Deserialization of type ({type}) resulted in null, content: {responseContent}", typeof(TResponse).Name, content);
+                return default;
+            }
         }
-        catch (Exception e)
+        catch (Exception e) // TODO: get more strict with exception
         {
-            Log.Error(e, "Could not read and parse content of type {type}, status code: {code}, with content: {content}", serializationType, (int)response.StatusCode, content);
+            logger?.LogError(e, "Could not read and parse content of type {type}, status code: {code}, with content: {content}", typeof(TResponse).Name, (int) response.StatusCode, content);
         }
 
         return default;
     }
 
     /// <summary>
-    /// Will throw an exception if it doesn't cast or deserialize properly (useful in tests) <para/>
+    /// Will throw an exception if it doesn't cast or deserialize properly. Useful in tests or retry logic. <para/>
     /// Reads content from message, and then deserializes
     /// </summary>
     /// <exception cref="Exception"></exception>
-    public static async ValueTask<T> ToStrict<T>(this System.Net.Http.HttpResponseMessage response)
+    public static async ValueTask<TResponse> ToStrict<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null)
     {
         string? content = null;
 
         try
         {
-            content = await response.Content.ReadAsStringAsync().NoSync();
+            content = await response.ToStringStrict().NoSync();
 
             if (content.IsNullOrEmpty())
-                throw new Exception("Trying to deserialize empty string");
+                throw new JsonException($"Trying to deserialize empty string for type ({typeof(TResponse).Name}), skipping");
 
-            object? result = JsonUtil.Deserialize(content, typeof(T));
+            var result = JsonUtil.Deserialize<TResponse>(content);
 
-            if (result == null)
-                throw new NullReferenceException("JSON object after deserializing was null");
-
-            var castResult = (T)result;
-
-            return castResult;
+            if (result != null)
+                return result;
         }
         catch (Exception e)
         {
-            Log.Logger.Error(e, "Could not read and parse content of type {type}, with content: {content}", typeof(T), content);
+            logger?.LogError(e, "Could not read and parse content of type {type}, with content: {content}", typeof(TResponse), content);
             throw;
         }
+
+        throw new JsonException($"Failed to deserialize ({typeof(TResponse).Name})");
     }
 
     /// <summary>
@@ -105,28 +98,37 @@ public static class HttpResponseMessageExtension
     /// </summary>
     /// <returns>Null when an exception is thrown and we can't read the content as string.</returns>
     [Pure]
-    public static async ValueTask<string?> ToStr(this System.Net.Http.HttpResponseMessage response)
+    public static async ValueTask<string?> ToStringSafe(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null)
     {
         try
         {
-            string content = await response.Content.ReadAsStringAsync().NoSync();
-
-            return content;
+            return await response.ToStringStrict().NoSync();
         }
         catch (Exception e)
         {
-            Log.Logger.Error(e, "Could not read content as string");
+            logger?.LogError(e, "Could not read content as string");
             return null;
         }
     }
 
     /// <summary>
+    /// response.Content.ReadAsStringAsync()
+    /// </summary>
+    /// <param name="response"></param>
+    /// <returns></returns>
+    [Pure]
+    public static async ValueTask<string> ToStringStrict(this System.Net.Http.HttpResponseMessage response)
+    {
+        return await response.Content.ReadAsStringAsync().NoSync();
+    }
+
+    /// <summary>
     /// Shorthand for Log.Debug(response.Content.ReadAsStringAsync(). Not exception safe.
     /// </summary>
-    public static async System.Threading.Tasks.ValueTask LogResponse(this System.Net.Http.HttpResponseMessage response)
+    public static async System.Threading.Tasks.ValueTask LogResponse(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null)
     {
-        string content = await response.Content.ReadAsStringAsync().NoSync();
+        string content = await response.ToStringStrict().NoSync();
 
-        Log.Debug("{content}", content);
+        logger?.LogDebug("{content}", content);
     }
 }
