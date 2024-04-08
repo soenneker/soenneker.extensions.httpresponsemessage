@@ -86,7 +86,7 @@ public static class HttpResponseMessageExtension
         }
         catch (Exception e)
         {
-            logger?.LogError(e, "Could not read and parse content of type {type}, with content: {content}", typeof(TResponse), content);
+            logger?.LogError(e, "Could not read and parse content of type {type}, with content: {content}", typeof(TResponse).Name, content);
             throw;
         }
 
