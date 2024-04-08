@@ -8,7 +8,6 @@ using Soenneker.Extensions.String;
 using Soenneker.Extensions.Task;
 using Soenneker.Extensions.ValueTask;
 using Soenneker.Utils.Json;
-using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace Soenneker.Extensions.HttpResponseMessage;
 
@@ -96,7 +95,7 @@ public static class HttpResponseMessageExtension
     /// <summary>
     /// Shorthand for response.Content.ReadAsStringAsync(). Exception safe.
     /// </summary>
-    /// <returns>Null when an exception is thrown and we can't read the content as string.</returns>
+    /// <returns>Null when an exception is thrown, and we can't read the content as string.</returns>
     [Pure]
     public static async ValueTask<string?> ToStringSafe(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null)
     {
