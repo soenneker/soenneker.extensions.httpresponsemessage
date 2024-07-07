@@ -2,6 +2,7 @@
 using System.Diagnostics.Contracts;
 using System.Net.Http;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Soenneker.Extensions.String;
@@ -22,12 +23,12 @@ public static class HttpResponseMessageExtension
     /// TODO: More work here, we should be looking at ProblemDetails and such
     /// </summary>
     /// <exception cref="HttpRequestException"></exception>
-    public static async System.Threading.Tasks.ValueTask EnsureSuccess(this System.Net.Http.HttpResponseMessage message, ILogger? logger = null)
+    public static async System.Threading.Tasks.ValueTask EnsureSuccess(this System.Net.Http.HttpResponseMessage message, ILogger? logger = null, CancellationToken cancellationToken = default)
     {
         if (message.IsSuccessStatusCode)
             return;
 
-        string content = await message.ToStringStrict().NoSync();
+        string content = await message.ToStringStrict(cancellationToken: cancellationToken).NoSync();
 
         logger?.LogInformation("HTTP Content: {content}", content);
 
@@ -38,9 +39,9 @@ public static class HttpResponseMessageExtension
     /// Exception safe. This is typically what we want for live code.
     /// </summary>
     [Pure]
-    public static async ValueTask<TResponse?> To<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null)
+    public static async ValueTask<TResponse?> To<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null, CancellationToken cancellationToken = default)
     {
-        string? content = await response.ToStringSafe().NoSync();
+        string? content = await response.ToStringSafe(cancellationToken: cancellationToken).NoSync();
 
         if (content.IsNullOrEmpty())
         {
@@ -71,9 +72,9 @@ public static class HttpResponseMessageExtension
     /// Reads content from message, and then deserializes
     /// </summary>
     /// <exception cref="Exception"></exception>
-    public static async ValueTask<TResponse> ToStrict<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null)
+    public static async ValueTask<TResponse> ToStrict<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null, CancellationToken cancellationToken = default)
     {
-        string? content = await response.ToStringStrict().NoSync();
+        string? content = await response.ToStringStrict(cancellationToken: cancellationToken).NoSync();
 
         if (content.IsNullOrEmpty())
             throw new JsonException($"Trying to deserialize null/empty string for type ({typeof(TResponse).Name}), skipping");
@@ -99,11 +100,11 @@ public static class HttpResponseMessageExtension
     /// </summary>
     /// <returns>Null when an exception is thrown, and we can't read the content as string.</returns>
     [Pure]
-    public static async ValueTask<string?> ToStringSafe(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null)
+    public static async ValueTask<string?> ToStringSafe(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null, CancellationToken cancellationToken = default)
     {
         try
         {
-            return await response.ToStringStrict().NoSync();
+            return await response.ToStringStrict(cancellationToken: cancellationToken).NoSync();
         }
         catch (Exception e)
         {
@@ -116,20 +117,21 @@ public static class HttpResponseMessageExtension
     /// response.Content.ReadAsStringAsync()
     /// </summary>
     /// <param name="response"></param>
+    /// <param name="cancellationToken"></param>
     /// <returns></returns>
     [Pure]
-    public static async ValueTask<string> ToStringStrict(this System.Net.Http.HttpResponseMessage response)
+    public static async ValueTask<string> ToStringStrict(this System.Net.Http.HttpResponseMessage response, CancellationToken cancellationToken = default)
     {
-        return await response.Content.ReadAsStringAsync().NoSync();
+        return await response.Content.ReadAsStringAsync(cancellationToken).NoSync();
     }
 
     /// <summary>
     /// Shorthand for Log.Debug(response.Content.ReadAsStringAsync(). Not exception safe.
     /// </summary>
-    public static async System.Threading.Tasks.ValueTask LogResponse(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null)
+    public static async System.Threading.Tasks.ValueTask LogResponse(this System.Net.Http.HttpResponseMessage response, ILogger logger, CancellationToken cancellationToken = default)
     {
-        string content = await response.ToStringStrict().NoSync();
+        string content = await response.ToStringStrict(cancellationToken: cancellationToken).NoSync();
 
-        logger?.LogDebug("{content}", content);
+        logger.LogDebug("{content}", content);
     }
 }
