@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Soenneker.Extensions.String;
 using Soenneker.Extensions.Task;
@@ -36,8 +37,23 @@ public static class HttpResponseMessageExtension
     }
 
     /// <summary>
-    /// Exception safe. This is typically what we want for live code.
+    /// Exception-safe method for asynchronously deserializing an <see cref="HttpResponseMessage"/> 
+    /// into an instance of type <typeparamref name="TResponse"/>.
+    /// This is typically the desired behavior for production code.
     /// </summary>
+    /// <typeparam name="TResponse">The type of the expected response.</typeparam>
+    /// <param name="response">The HTTP response message to process.</param>
+    /// <param name="logger">An optional logger for recording warnings and errors.</param>
+    /// <param name="cancellationToken">A cancellation token to manage the operation's lifecycle.</param>
+    /// <returns>
+    /// The deserialized response of type <typeparamref name="TResponse"/>. 
+    /// Returns <c>default</c> if deserialization fails or if the response content is null or empty.
+    /// </returns>
+    /// <remarks>
+    /// This method logs a warning if the response content is null or empty, 
+    /// and it logs an error if deserialization fails. 
+    /// Ensure that the <paramref name="logger"/> is configured to capture these logs.
+    /// </remarks>
     [Pure]
     public static async ValueTask<TResponse?> To<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null, CancellationToken cancellationToken = default)
     {
@@ -45,7 +61,7 @@ public static class HttpResponseMessageExtension
 
         if (content.IsNullOrEmpty())
         {
-            logger?.LogWarning("Trying to deserialize null/empty string for type ({type}), skipping", typeof(TResponse).Name);
+            logger?.LogWarning("Attempting to deserialize null/empty content for type ({type}), skipping", typeof(TResponse).Name);
             return default;
         }
 
@@ -56,7 +72,7 @@ public static class HttpResponseMessageExtension
             if (result != null)
                 return result;
 
-            logger?.LogWarning("Deserialization of type ({type}) resulted in null, status code: {code}, content: {responseContent}", typeof(TResponse).Name, (int) response.StatusCode, content);
+            logger?.LogWarning("Deserialization of type ({type}) was null, status code: {code}, content: {responseContent}", typeof(TResponse).Name, (int) response.StatusCode, content);
             return default;
         }
         catch (Exception e) // TODO: get more strict with exception
@@ -65,6 +81,60 @@ public static class HttpResponseMessageExtension
         }
 
         return default;
+    }
+
+    /// <summary>
+    /// Asynchronously processes an <see cref="HttpResponseMessage"/> to extract a response of type <typeparamref name="TResponse"/> 
+    /// and optional <see cref="ProblemDetails"/>. 
+    /// </summary>
+    /// <typeparam name="TResponse">The type of the expected response.</typeparam>
+    /// <param name="response">The HTTP response message to process.</param>
+    /// <param name="logger">An optional logger for logging warnings and errors.</param>
+    /// <param name="cancellationToken">A cancellation token to cancel the operation.</param>
+    /// <returns>A tuple containing the deserialized response of type <typeparamref name="TResponse"/> and optional <see cref="ProblemDetails"/>.
+    /// If deserialization fails or the content is null/empty, returns default values.</returns>
+    /// <remarks>
+    /// This method will log warnings if the content is null/empty, and it will log errors 
+    /// if deserialization of <typeparamref name="TResponse"/> fails. If <typeparamref name="TResponse"/> 
+    /// cannot be deserialized but <see cref="ProblemDetails"/> can, it returns the problem details.
+    /// </remarks>
+    [Pure]
+    public static async ValueTask<(TResponse?, ProblemDetails?)> ToWithDetails<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null, CancellationToken cancellationToken = default)
+    {
+        string? content = await response.ToStringSafe(cancellationToken: cancellationToken).NoSync();
+
+        if (content.IsNullOrEmpty())
+        {
+            logger?.LogWarning("Attempting to deserialize null/empty content for type ({type}), skipping", typeof(TResponse).Name);
+            return (default, null);
+        }
+
+        try
+        {
+            if (response.IsSuccessStatusCode)
+            {
+                var result = JsonUtil.Deserialize<TResponse>(content);
+
+                if (result != null)
+                    return (result, null);
+            }
+            else
+            {
+                var problemDetails = JsonUtil.Deserialize<ProblemDetails>(content);
+
+                if (problemDetails != null)
+                    return (default, problemDetails);
+            }
+
+            logger?.LogWarning("Deserialization of type ({type}) was null, status code: {code}, content: {responseContent}", typeof(TResponse).Name, (int)response.StatusCode, content);
+            return (default, null);
+        }
+        catch (Exception e)
+        {
+            logger?.LogError(e, "Deserialization of type {type} failed, status code: {code}, with content: {content}", typeof(TResponse).Name, (int)response.StatusCode, content);
+        }
+
+        return (default, null);
     }
 
     /// <summary>
@@ -120,9 +190,9 @@ public static class HttpResponseMessageExtension
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
     [Pure]
-    public static async ValueTask<string> ToStringStrict(this System.Net.Http.HttpResponseMessage response, CancellationToken cancellationToken = default)
+    public static Task<string> ToStringStrict(this System.Net.Http.HttpResponseMessage response, CancellationToken cancellationToken = default)
     {
-        return await response.Content.ReadAsStringAsync(cancellationToken).NoSync();
+        return response.Content.ReadAsStringAsync(cancellationToken);
     }
 
     /// <summary>
