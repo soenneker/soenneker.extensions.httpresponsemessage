@@ -4,8 +4,8 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Soenneker.Dtos.ProblemDetails;
 using Soenneker.Extensions.String;
 using Soenneker.Extensions.Task;
 using Soenneker.Extensions.ValueTask;
@@ -85,21 +85,21 @@ public static class HttpResponseMessageExtension
 
     /// <summary>
     /// Asynchronously processes an <see cref="HttpResponseMessage"/> to extract a response of type <typeparamref name="TResponse"/> 
-    /// and optional <see cref="ProblemDetails"/>. 
+    /// and optional <see cref="ProblemDetailsDto"/>. 
     /// </summary>
     /// <typeparam name="TResponse">The type of the expected response.</typeparam>
     /// <param name="response">The HTTP response message to process.</param>
     /// <param name="logger">An optional logger for logging warnings and errors.</param>
     /// <param name="cancellationToken">A cancellation token to cancel the operation.</param>
-    /// <returns>A tuple containing the deserialized response of type <typeparamref name="TResponse"/> and optional <see cref="ProblemDetails"/>.
+    /// <returns>A tuple containing the deserialized response of type <typeparamref name="TResponse"/> and optional <see cref="ProblemDetailsDto"/>.
     /// If deserialization fails or the content is null/empty, returns default values.</returns>
     /// <remarks>
     /// This method will log warnings if the content is null/empty, and it will log errors 
     /// if deserialization of <typeparamref name="TResponse"/> fails. If <typeparamref name="TResponse"/> 
-    /// cannot be deserialized but <see cref="ProblemDetails"/> can, it returns the problem details.
+    /// cannot be deserialized but <see cref="ProblemDetailsDto"/> can, it returns the problem details.
     /// </remarks>
     [Pure]
-    public static async ValueTask<(TResponse?, ProblemDetails?)> ToWithDetails<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null, CancellationToken cancellationToken = default)
+    public static async ValueTask<(TResponse?, ProblemDetailsDto?)> ToWithDetails<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null, CancellationToken cancellationToken = default)
     {
         string? content = await response.ToStringSafe(cancellationToken: cancellationToken).NoSync();
 
@@ -120,7 +120,7 @@ public static class HttpResponseMessageExtension
             }
             else
             {
-                var problemDetails = JsonUtil.Deserialize<ProblemDetails>(content);
+                var problemDetails = JsonUtil.Deserialize<ProblemDetailsDto>(content);
 
                 if (problemDetails != null)
                     return (default, problemDetails);
