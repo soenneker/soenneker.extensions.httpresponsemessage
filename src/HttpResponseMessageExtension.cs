@@ -6,7 +6,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Soenneker.Dtos.ProblemDetails;
-using Soenneker.Extensions.String;
 using Soenneker.Extensions.Task;
 using Soenneker.Extensions.ValueTask;
 using Soenneker.Utils.Json;
@@ -57,27 +56,19 @@ public static class HttpResponseMessageExtension
     [Pure]
     public static async ValueTask<TResponse?> To<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null, CancellationToken cancellationToken = default)
     {
-        string? content = await response.ToStringSafe(cancellationToken: cancellationToken).NoSync();
-
-        if (content.IsNullOrEmpty())
-        {
-            logger?.LogWarning("Attempting to deserialize null/empty content for type ({type}), skipping", typeof(TResponse).Name);
-            return default;
-        }
-
         try
         {
-            var result = JsonUtil.Deserialize<TResponse>(content);
+            TResponse? result = await JsonUtil.Deserialize<TResponse>(response, logger, cancellationToken).NoSync();
 
-            if (result != null)
+            if (result is not null)
                 return result;
 
-            logger?.LogWarning("Deserialization of type ({type}) was null, status code: {code}, content: {responseContent}", typeof(TResponse).Name, (int) response.StatusCode, content);
+            await LogWarning(logger, typeof(TResponse), response, cancellationToken).NoSync();
             return default;
         }
         catch (Exception e) // TODO: get more strict with exception
         {
-            logger?.LogError(e, "Deserialization of type {type} failed, status code: {code}, with content: {content}", typeof(TResponse).Name, (int) response.StatusCode, content);
+            await LogError(logger, e, typeof(TResponse), response, cancellationToken).NoSync();
         }
 
         return default;
@@ -99,39 +90,32 @@ public static class HttpResponseMessageExtension
     /// cannot be deserialized but <see cref="ProblemDetailsDto"/> can, it returns the problem details.
     /// </remarks>
     [Pure]
-    public static async ValueTask<(TResponse?, ProblemDetailsDto?)> ToWithDetails<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null, CancellationToken cancellationToken = default)
+    public static async ValueTask<(TResponse?, ProblemDetailsDto?)> ToWithDetails<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null,
+        CancellationToken cancellationToken = default)
     {
-        string? content = await response.ToStringSafe(cancellationToken: cancellationToken).NoSync();
-
-        if (content.IsNullOrEmpty())
-        {
-            logger?.LogWarning("Attempting to deserialize null/empty content for type ({type}), skipping", typeof(TResponse).Name);
-            return (default, null);
-        }
-
         try
         {
             if (response.IsSuccessStatusCode)
             {
-                var result = JsonUtil.Deserialize<TResponse>(content);
+                TResponse? result = await JsonUtil.Deserialize<TResponse>(response, logger, cancellationToken).NoSync();
 
-                if (result != null)
+                if (result is not null)
                     return (result, null);
             }
             else
             {
-                var problemDetails = JsonUtil.Deserialize<ProblemDetailsDto>(content);
+                ProblemDetailsDto? problemDetails = await JsonUtil.Deserialize<ProblemDetailsDto>(response, logger, cancellationToken).NoSync();
 
-                if (problemDetails != null)
+                if (problemDetails is not null)
                     return (default, problemDetails);
             }
 
-            logger?.LogWarning("Deserialization of type ({type}) was null, status code: {code}, content: {responseContent}", typeof(TResponse).Name, (int)response.StatusCode, content);
+            await LogWarning(logger, typeof(TResponse), response, cancellationToken).NoSync();
             return (default, null);
         }
         catch (Exception e)
         {
-            logger?.LogError(e, "Deserialization of type {type} failed, status code: {code}, with content: {content}", typeof(TResponse).Name, (int)response.StatusCode, content);
+            await LogError(logger, e, typeof(TResponse), response, cancellationToken).NoSync();
         }
 
         return (default, null);
@@ -144,21 +128,16 @@ public static class HttpResponseMessageExtension
     /// <exception cref="Exception"></exception>
     public static async ValueTask<TResponse> ToStrict<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null, CancellationToken cancellationToken = default)
     {
-        string? content = await response.ToStringStrict(cancellationToken: cancellationToken).NoSync();
-
-        if (content.IsNullOrEmpty())
-            throw new JsonException($"Trying to deserialize null/empty string for type ({typeof(TResponse).Name}), skipping");
-
         try
         {
-            var result = JsonUtil.Deserialize<TResponse>(content);
+            TResponse? result = await JsonUtil.Deserialize<TResponse>(response, logger, cancellationToken).NoSync();
 
-            if (result != null)
+            if (result is not null)
                 return result;
         }
         catch (Exception e)
         {
-            logger?.LogError(e, "Deserialization of type {type} failed, status code: {code}, with content: {content}", typeof(TResponse).Name, (int) response.StatusCode, content);
+            await LogError(logger, e, typeof(TResponse), response, cancellationToken).NoSync();
             throw;
         }
 
@@ -203,5 +182,22 @@ public static class HttpResponseMessageExtension
         string content = await response.ToStringStrict(cancellationToken: cancellationToken).NoSync();
 
         logger.LogDebug("{content}", content);
+    }
+
+    private static async System.Threading.Tasks.ValueTask LogWarning(ILogger? logger, Type responseType, System.Net.Http.HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        string responseContent = await response.Content.ReadAsStringAsync(cancellationToken).NoSync();
+
+        logger?.LogWarning("Deserialization of type ({type}) was null, status code: {code}, content: {responseContent}",
+            responseType.Name, (int) response.StatusCode, responseContent);
+    }
+
+    private static async System.Threading.Tasks.ValueTask LogError(ILogger? logger, Exception exception, Type responseType, System.Net.Http.HttpResponseMessage response,
+        CancellationToken cancellationToken)
+    {
+        string responseContent = await response.Content.ReadAsStringAsync(cancellationToken).NoSync();
+
+        logger?.LogError(exception, "Deserialization of type {type} failed, status code: {code}, with content: {content}",
+            responseType.Name, (int) response.StatusCode, responseContent);
     }
 }
