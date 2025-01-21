@@ -37,7 +37,7 @@
         <None Include="..\LICENSE" Pack="true" PackagePath="\" />
         <None Include="..\icon.png" Pack="true" PackagePath="\" />
         
-        <PackageReference Include="Soenneker.Dtos.ProblemDetails" Version="3.0.231" />
+        <PackageReference Include="Soenneker.Dtos.ProblemDetails" Version="3.0.232" />
         <PackageReference Include="Soenneker.Utils.Json" Version="3.0.1928" />
     </ItemGroup>
 </Project>
