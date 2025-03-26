@@ -1,14 +1,15 @@
-﻿using System;
+﻿using Microsoft.Extensions.Logging;
+using Soenneker.Dtos.ProblemDetails;
+using Soenneker.Extensions.Task;
+using Soenneker.Extensions.ValueTask;
+using Soenneker.Utils.Json;
+using Soenneker.Utils.Xml;
+using System;
 using System.Diagnostics.Contracts;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using Soenneker.Dtos.ProblemDetails;
-using Soenneker.Extensions.Task;
-using Soenneker.Extensions.ValueTask;
-using Soenneker.Utils.Json;
 
 namespace Soenneker.Extensions.HttpResponseMessage;
 
@@ -67,6 +68,28 @@ public static class HttpResponseMessageExtension
             return default;
         }
         catch (Exception e) // TODO: get more strict with exception
+        {
+            await LogError(logger, e, typeof(TResponse), response, cancellationToken).NoSync();
+        }
+
+        return default;
+    }
+
+    [Pure]
+    public static async ValueTask<TResponse?> ToFromXml<TResponse>(System.Net.Http.HttpResponseMessage response, ILogger? logger = null, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            string content = await response.Content.ReadAsStringAsync(cancellationToken).NoSync();
+
+            var result = XmlUtil.Deserialize<TResponse>(content);
+
+            if (result == null)
+                throw new NullReferenceException("XML deserialization was null");
+
+            return result;
+        }
+        catch (Exception e)
         {
             await LogError(logger, e, typeof(TResponse), response, cancellationToken).NoSync();
         }
