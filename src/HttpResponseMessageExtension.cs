@@ -7,6 +7,7 @@ using Soenneker.Utils.Xml;
 using System;
 using System.Diagnostics.Contracts;
 using System.Net.Http;
+using System.Reflection.Metadata;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -24,7 +25,8 @@ public static class HttpResponseMessageExtension
     /// TODO: More work here, we should be looking at ProblemDetails and such
     /// </summary>
     /// <exception cref="HttpRequestException"></exception>
-    public static async System.Threading.Tasks.ValueTask EnsureSuccess(this System.Net.Http.HttpResponseMessage message, ILogger? logger = null, CancellationToken cancellationToken = default)
+    public static async System.Threading.Tasks.ValueTask EnsureSuccess(this System.Net.Http.HttpResponseMessage message, ILogger? logger = null,
+        CancellationToken cancellationToken = default)
     {
         if (message.IsSuccessStatusCode)
             return;
@@ -55,7 +57,8 @@ public static class HttpResponseMessageExtension
     /// Ensure that the <paramref name="logger"/> is configured to capture these logs.
     /// </remarks>
     [Pure]
-    public static async ValueTask<TResponse?> To<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null, CancellationToken cancellationToken = default)
+    public static async ValueTask<TResponse?> To<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -76,7 +79,32 @@ public static class HttpResponseMessageExtension
     }
 
     [Pure]
-    public static async ValueTask<TResponse?> ToFromXml<TResponse>(System.Net.Http.HttpResponseMessage response, ILogger? logger = null, CancellationToken cancellationToken = default)
+    public static async ValueTask<(TResponse? response, string? content)> ToWithString<TResponse>(this System.Net.Http.HttpResponseMessage response,
+        ILogger? logger = null, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            string content = await response.Content.ReadAsStringAsync(cancellationToken).NoSync();
+
+            var result = JsonUtil.Deserialize<TResponse>(content);
+
+            if (result is not null)
+                return (result, content);
+
+            await LogWarning(logger, typeof(TResponse), response, cancellationToken).NoSync();
+            return (default, content);
+        }
+        catch (Exception e) // TODO: get more strict with exception
+        {
+            await LogError(logger, e, typeof(TResponse), response, cancellationToken).NoSync();
+        }
+
+        return (default, null);
+    }
+
+    [Pure]
+    public static async ValueTask<TResponse?> ToFromXml<TResponse>(System.Net.Http.HttpResponseMessage response, ILogger? logger = null,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -113,8 +141,8 @@ public static class HttpResponseMessageExtension
     /// cannot be deserialized but <see cref="ProblemDetailsDto"/> can, it returns the problem details.
     /// </remarks>
     [Pure]
-    public static async ValueTask<(TResponse?, ProblemDetailsDto?)> ToWithDetails<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null,
-        CancellationToken cancellationToken = default)
+    public static async ValueTask<(TResponse?, ProblemDetailsDto?)> ToWithDetails<TResponse>(this System.Net.Http.HttpResponseMessage response,
+        ILogger? logger = null, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -149,7 +177,8 @@ public static class HttpResponseMessageExtension
     /// Reads content from message, and then deserializes
     /// </summary>
     /// <exception cref="Exception"></exception>
-    public static async ValueTask<TResponse> ToStrict<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null, CancellationToken cancellationToken = default)
+    public static async ValueTask<TResponse> ToStrict<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -172,7 +201,8 @@ public static class HttpResponseMessageExtension
     /// </summary>
     /// <returns>Null when an exception is thrown, and we can't read the content as string.</returns>
     [Pure]
-    public static async ValueTask<string?> ToStringSafe(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null, CancellationToken cancellationToken = default)
+    public static async ValueTask<string?> ToStringSafe(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -200,27 +230,29 @@ public static class HttpResponseMessageExtension
     /// <summary>
     /// Shorthand for Log.Debug(response.Content.ReadAsStringAsync(). Not exception safe.
     /// </summary>
-    public static async System.Threading.Tasks.ValueTask LogResponse(this System.Net.Http.HttpResponseMessage response, ILogger logger, CancellationToken cancellationToken = default)
+    public static async System.Threading.Tasks.ValueTask LogResponse(this System.Net.Http.HttpResponseMessage response, ILogger logger,
+        CancellationToken cancellationToken = default)
     {
         string content = await response.ToStringStrict(cancellationToken: cancellationToken).NoSync();
 
         logger.LogDebug("{content}", content);
     }
 
-    private static async System.Threading.Tasks.ValueTask LogWarning(ILogger? logger, Type responseType, System.Net.Http.HttpResponseMessage response, CancellationToken cancellationToken)
-    {
-        string responseContent = await response.Content.ReadAsStringAsync(cancellationToken).NoSync();
-
-        logger?.LogWarning("Deserialization of type ({type}) was null, status code: {code}, content: {responseContent}",
-            responseType.Name, (int) response.StatusCode, responseContent);
-    }
-
-    private static async System.Threading.Tasks.ValueTask LogError(ILogger? logger, Exception exception, Type responseType, System.Net.Http.HttpResponseMessage response,
+    private static async System.Threading.Tasks.ValueTask LogWarning(ILogger? logger, Type responseType, System.Net.Http.HttpResponseMessage response,
         CancellationToken cancellationToken)
     {
         string responseContent = await response.Content.ReadAsStringAsync(cancellationToken).NoSync();
 
-        logger?.LogError(exception, "Deserialization of type {type} failed, status code: {code}, with content: {content}",
-            responseType.Name, (int) response.StatusCode, responseContent);
+        logger?.LogWarning("Deserialization of type ({type}) was null, status code: {code}, content: {responseContent}", responseType.Name,
+            (int) response.StatusCode, responseContent);
+    }
+
+    private static async System.Threading.Tasks.ValueTask LogError(ILogger? logger, Exception exception, Type responseType,
+        System.Net.Http.HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        string responseContent = await response.Content.ReadAsStringAsync(cancellationToken).NoSync();
+
+        logger?.LogError(exception, "Deserialization of type {type} failed, status code: {code}, with content: {content}", responseType.Name,
+            (int) response.StatusCode, responseContent);
     }
 }
