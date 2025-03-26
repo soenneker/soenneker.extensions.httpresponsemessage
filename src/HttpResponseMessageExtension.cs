@@ -7,7 +7,6 @@ using Soenneker.Utils.Xml;
 using System;
 using System.Diagnostics.Contracts;
 using System.Net.Http;
-using System.Reflection.Metadata;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
