@@ -140,7 +140,7 @@ public static class HttpResponseMessageExtension
     /// cannot be deserialized but <see cref="ProblemDetailsDto"/> can, it returns the problem details.
     /// </remarks>
     [Pure]
-    public static async ValueTask<(TResponse?, ProblemDetailsDto?)> ToWithDetails<TResponse>(this System.Net.Http.HttpResponseMessage response,
+    public static async ValueTask<(TResponse? response, ProblemDetailsDto? details)> ToWithDetails<TResponse>(this System.Net.Http.HttpResponseMessage response,
         ILogger? logger = null, CancellationToken cancellationToken = default)
     {
         try
