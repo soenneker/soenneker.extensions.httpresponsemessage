@@ -38,7 +38,7 @@
         <None Include="..\icon.png" Pack="true" PackagePath="\" />
         
         <PackageReference Include="Soenneker.Dtos.ProblemDetails" Version="3.0.398" />
-        <PackageReference Include="Soenneker.Utils.Json" Version="3.0.2345" />
+        <PackageReference Include="Soenneker.Utils.Json" Version="3.0.2349" />
         <PackageReference Include="Soenneker.Utils.Xml" Version="3.0.951" />
     </ItemGroup>
 </Project>
