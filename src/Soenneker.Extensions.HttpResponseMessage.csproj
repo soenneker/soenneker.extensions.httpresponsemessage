@@ -36,9 +36,10 @@
         <None Include="..\README.md" Pack="true" PackagePath="\" />
         <None Include="..\LICENSE" Pack="true" PackagePath="\" />
         <None Include="..\icon.png" Pack="true" PackagePath="\" />
-        
-        <PackageReference Include="Soenneker.Dtos.ProblemDetails" Version="3.0.399" />
-        <PackageReference Include="Soenneker.Utils.Json" Version="3.0.2350" />
+
+        <PackageReference Include="Soenneker.Extensions.Dtos.Results.Operation" Version="3.0.2" />
+        <PackageReference Include="Soenneker.Extensions.HttpContent" Version="3.0.730" />
+        <PackageReference Include="Soenneker.Utils.Json" Version="3.0.2351" />
         <PackageReference Include="Soenneker.Utils.Xml" Version="3.0.952" />
     </ItemGroup>
 </Project>
