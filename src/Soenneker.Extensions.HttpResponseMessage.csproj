@@ -39,7 +39,7 @@
 
         <PackageReference Include="Soenneker.Extensions.Dtos.Results.Operation" Version="3.0.2" />
         <PackageReference Include="Soenneker.Extensions.HttpContent" Version="3.0.730" />
-        <PackageReference Include="Soenneker.Utils.Json" Version="3.0.2351" />
+        <PackageReference Include="Soenneker.Utils.Json" Version="3.0.2353" />
         <PackageReference Include="Soenneker.Utils.Xml" Version="3.0.952" />
     </ItemGroup>
 </Project>
