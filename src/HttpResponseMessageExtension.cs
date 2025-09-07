@@ -111,7 +111,7 @@ public static class HttpResponseMessageExtension
         try
         {
             await using System.IO.Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).NoSync();
-            TResponse? result = await JsonSerializer.DeserializeAsync<TResponse>(stream, options: null, cancellationToken).NoSync();
+            TResponse? result = await JsonUtil.Deserialize<TResponse>(stream, logger, cancellationToken).NoSync();
 
             if (result is not null)
                 return result;
@@ -200,12 +200,14 @@ public static class HttpResponseMessageExtension
                 await using System.IO.Stream s = await response.Content.ReadAsStreamAsync(cancellationToken).NoSync();
                 // If XmlUtil has stream overload, use it. Otherwise, read string once (still streaming, but will allocate)
                 // Example with string fallback:
-                using var reader = new StreamReader(s, ResolveEncoding(response.Content.Headers?.ContentType?.CharSet), detectEncodingFromByteOrderMarks: true);
+                using var reader = new StreamReader(s, ResolveEncoding(response.Content.Headers.ContentType?.CharSet), detectEncodingFromByteOrderMarks: true);
                 string xml = await reader.ReadToEndAsync(cancellationToken).NoSync();
 
                 var result = XmlUtil.Deserialize<TResponse>(xml);
+
                 if (result is null)
                     throw new NullReferenceException("XML deserialization returned null");
+
                 return result;
             }
             catch (Exception e)
@@ -339,7 +341,7 @@ public static class HttpResponseMessageExtension
             }
             else if (IsJson(response))
             {
-                ProblemDetailsDto? problem = await JsonSerializer.DeserializeAsync<ProblemDetailsDto>(s, options: null, cancellationToken).NoSync();
+                ProblemDetailsDto? problem = await JsonUtil.Deserialize<ProblemDetailsDto>(s, logger, cancellationToken).NoSync();
                 if (problem is not null) return (default, problem);
             }
 
@@ -450,7 +452,7 @@ public static class HttpResponseMessageExtension
             try
             {
                 await using System.IO.Stream s = await response.Content.ReadAsStreamAsync(cancellationToken).NoSync();
-                TResponse? ok = await JsonSerializer.DeserializeAsync<TResponse>(s, options: null, cancellationToken).NoSync();
+                TResponse? ok = await JsonUtil.Deserialize<TResponse>(s, logger, cancellationToken).NoSync();
                 if (ok is not null) return ok;
             }
             catch (Exception e)
