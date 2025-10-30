@@ -14,7 +14,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Soenneker.Extensions.HttpContent;
-using Soenneker.Extensions.Spans.Readonly;
+using Soenneker.Extensions.Spans.Readonly.Bytes;
 using Soenneker.Extensions.Stream;
 using Soenneker.Extensions.Task;
 using Soenneker.Utils.Json;
