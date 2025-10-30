@@ -41,7 +41,7 @@
     <ItemGroup>
         <PackageReference Include="Soenneker.Dtos.Results.Operation" Version="4.0.10" />
         <PackageReference Include="Soenneker.Extensions.HttpContent" Version="4.0.735" />
-        <PackageReference Include="Soenneker.Extensions.Spans.Readonly" Version="3.0.10" />
+        <PackageReference Include="Soenneker.Extensions.Spans.Readonly" Version="4.0.12" />
         <PackageReference Include="Soenneker.Utils.Json" Version="4.0.2362" />
         <PackageReference Include="Soenneker.Utils.Xml" Version="4.0.960" />
     </ItemGroup>
