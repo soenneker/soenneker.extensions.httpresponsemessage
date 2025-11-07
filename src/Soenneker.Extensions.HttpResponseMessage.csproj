@@ -43,6 +43,6 @@
         <PackageReference Include="Soenneker.Extensions.HttpContent" Version="4.0.737" />
         <PackageReference Include="Soenneker.Extensions.Spans.Readonly.Chars" Version="4.0.7" />
         <PackageReference Include="Soenneker.Utils.Json" Version="4.0.2363" />
-        <PackageReference Include="Soenneker.Utils.Xml" Version="4.0.961" />
+        <PackageReference Include="Soenneker.Utils.Xml" Version="4.0.962" />
     </ItemGroup>
 </Project>
