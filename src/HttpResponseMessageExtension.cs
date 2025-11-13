@@ -26,6 +26,7 @@ namespace Soenneker.Extensions.HttpResponseMessage;
 public static class HttpResponseMessageExtension
 {
     private const int _logPreviewMaxChars = 4_096;
+    private static readonly int _logPreviewMaxBytes = Encoding.UTF8.GetMaxByteCount(_logPreviewMaxChars);
 
     // Thread-safe cache for charsets to Encoding to avoid repeated GetEncoding costs.
     private static readonly ConcurrentDictionary<string, Encoding> _encCache = new(StringComparer.OrdinalIgnoreCase);
@@ -51,12 +52,14 @@ public static class HttpResponseMessageExtension
     }
 
     /// <summary>Exception-safe JSON to T from the response body (returns default on failure).</summary>
-    [Pure, MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    [Pure]
     public static async ValueTask<TResponse?> To<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null,
         CancellationToken cancellationToken = default)
     {
         if (IsNoContent(response))
             return default;
+
+        Type responseType = typeof(TResponse);
 
         // Small known bodies -> bytes; large/unknown -> stream
         if (!response.Content.ShouldUseStream())
@@ -69,13 +72,13 @@ public static class HttpResponseMessageExtension
             }
             catch (Exception e)
             {
-                LogError(logger, e, typeof(TResponse), response, ReadOnlyMemory<byte>.Empty);
+                LogError(logger, e, responseType, response, ReadOnlyMemory<byte>.Empty);
                 return default;
             }
 
             if (bytes.Length == 0)
             {
-                LogWarning(logger, typeof(TResponse), response, bytes);
+                LogWarning(logger, responseType, response, bytes);
                 return default;
             }
 
@@ -84,7 +87,7 @@ public static class HttpResponseMessageExtension
 
             if (!looksJson)
             {
-                LogWarning(logger, typeof(TResponse), response, bytes);
+                LogWarning(logger, responseType, response, bytes);
                 return default;
             }
 
@@ -93,11 +96,11 @@ public static class HttpResponseMessageExtension
                 if (JsonUtil.TryDeserialize(span, out TResponse? result))
                     return result;
 
-                LogWarning(logger, typeof(TResponse), response, bytes);
+                LogWarning(logger, responseType, response, bytes);
             }
             catch (Exception e)
             {
-                LogError(logger, e, typeof(TResponse), response, bytes);
+                LogError(logger, e, responseType, response, bytes);
             }
 
             return default;
@@ -115,7 +118,7 @@ public static class HttpResponseMessageExtension
 
                 if (read == 0)
                 {
-                    LogWarning(logger, typeof(TResponse), response, ReadOnlyMemory<byte>.Empty);
+                    LogWarning(logger, responseType, response, ReadOnlyMemory<byte>.Empty);
                     return default;
                 }
 
@@ -124,7 +127,7 @@ public static class HttpResponseMessageExtension
 
                 if (!looksJson)
                 {
-                    LogWarning(logger, typeof(TResponse), response, ReadOnlyMemory<byte>.Empty);
+                    LogWarning(logger, responseType, response, ReadOnlyMemory<byte>.Empty);
                     return default;
                 }
 
@@ -141,7 +144,7 @@ public static class HttpResponseMessageExtension
                 if (result is not null)
                     return result;
 
-                LogWarning(logger, typeof(TResponse), response, ReadOnlyMemory<byte>.Empty);
+                LogWarning(logger, responseType, response, ReadOnlyMemory<byte>.Empty);
                 return default;
             }
             finally
@@ -151,13 +154,13 @@ public static class HttpResponseMessageExtension
         }
         catch (Exception e)
         {
-            LogError(logger, e, typeof(TResponse), response, ReadOnlyMemory<byte>.Empty);
+            LogError(logger, e, responseType, response, ReadOnlyMemory<byte>.Empty);
             return default;
         }
     }
 
     /// <summary>Deserialize to T and also return the raw string (if needed).</summary>
-    [Pure, MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    [Pure]
     public static async ValueTask<(TResponse? response, string? content)> ToWithString<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null,
         CancellationToken cancellationToken = default)
     {
@@ -176,7 +179,7 @@ public static class HttpResponseMessageExtension
             {
                 string s = await response.Content.ReadAsStringAsync(cancellationToken).NoSync();
 
-                if (TryDeserializeFromString<TResponse>(s, out TResponse? fromString))
+                if (TryDeserializeFromString(s, out TResponse? fromString))
                     return (fromString, s);
 
                 LogWarning(logger, typeof(TResponse), response, ReadOnlyMemory<byte>.Empty);
@@ -189,25 +192,27 @@ public static class HttpResponseMessageExtension
             return (default, null);
         }
 
+        string? charset = response.Content.Headers.ContentType?.CharSet;
+        string? content = null;
+
         try
         {
             ReadOnlySpan<byte> span = bytes.Span;
             bool looksJson = span.LooksLikeJson();
 
-            TResponse? result = looksJson && JsonUtil.TryDeserialize(span, out TResponse? r) ? r : default;
+            content = GetContentString(bytes, charset);
 
-            string content = GetContentString(bytes, response.Content.Headers.ContentType?.CharSet);
-
-            if (result is not null)
-                return (result, content);
+            if (looksJson && JsonUtil.TryDeserialize(span, out TResponse? r) && r is not null)
+                return (r, content);
 
             LogWarning(logger, typeof(TResponse), response, bytes);
             return (default, content);
         }
         catch (Exception e)
         {
+            content ??= TryGetContentString(bytes, charset);
             LogError(logger, e, typeof(TResponse), response, bytes);
-            return (default, null);
+            return (default, content);
         }
     }
 
@@ -262,155 +267,8 @@ public static class HttpResponseMessageExtension
         }
     }
 
-    /// <summary>Deserialize to TResponse or ProblemDetailsDto (single read; no duplicate allocations).</summary>
-    [Obsolete("ToResult should be used; this will be removed soon")]
-    [Pure, MethodImpl(MethodImplOptions.AggressiveOptimization)]
-    public static async ValueTask<(TResponse? response, ProblemDetailsDto? details)> ToWithDetails<TResponse>(this System.Net.Http.HttpResponseMessage response,
-        ILogger? logger = null, CancellationToken cancellationToken = default)
-    {
-        if (IsNoContent(response))
-            return (default, null);
-
-        // Shortcut: if server says problem+json, decode that directly
-        if (IsProblemJson(response))
-        {
-            if (!response.Content.ShouldUseStream())
-            {
-                ReadOnlyMemory<byte> b1;
-                try
-                {
-                    b1 = await response.Content.GetSmallContentBytes(cancellationToken).NoSync();
-                }
-                catch (Exception e)
-                {
-                    LogError(logger, e, typeof(TResponse), response, ReadOnlyMemory<byte>.Empty);
-                    return (default, null);
-                }
-
-                if (JsonUtil.TryDeserialize(b1.Span, out ProblemDetailsDto? pd) && pd is not null)
-                    return (default, pd);
-
-                LogWarning(logger, typeof(TResponse), response, b1);
-                return (default, null);
-            }
-
-            try
-            {
-                await using System.IO.Stream s = await response.Content.ReadAsStreamAsync(cancellationToken).NoSync();
-
-                ProblemDetailsDto? pd = await JsonUtil.Deserialize<ProblemDetailsDto>(s, logger, cancellationToken).NoSync();
-
-                if (pd is not null)
-                    return (default, pd);
-
-                LogWarning(logger, typeof(TResponse), response, ReadOnlyMemory<byte>.Empty);
-                return (default, null);
-            }
-            catch (Exception e)
-            {
-                LogError(logger, e, typeof(TResponse), response, ReadOnlyMemory<byte>.Empty);
-                return (default, null);
-            }
-        }
-
-        // General case: success -> TResponse ; failure -> ProblemDetailsDto if JSON (content-based)
-        if (!response.Content.ShouldUseStream())
-        {
-            ReadOnlyMemory<byte> bytes;
-
-            try
-            {
-                bytes = await response.Content.GetSmallContentBytes(cancellationToken).NoSync();
-            }
-            catch (Exception e)
-            {
-                LogError(logger, e, typeof(TResponse), response, ReadOnlyMemory<byte>.Empty);
-                return (default, null);
-            }
-
-            try
-            {
-                ReadOnlySpan<byte> span = bytes.Span;
-                bool looksJson = span.LooksLikeJson();
-
-                if (response.IsSuccessStatusCode && looksJson)
-                {
-                    if (JsonUtil.TryDeserialize(span, out TResponse? ok))
-                        return (ok, null);
-                }
-                else if (looksJson)
-                {
-                    if (JsonUtil.TryDeserialize(span, out ProblemDetailsDto? problem) && problem is not null)
-                        return (default, problem);
-                }
-
-                LogWarning(logger, typeof(TResponse), response, bytes);
-                return (default, null);
-            }
-            catch (Exception e)
-            {
-                LogError(logger, e, typeof(TResponse), response, bytes);
-                return (default, null);
-            }
-        }
-
-        try
-        {
-            await using System.IO.Stream s = await response.Content.ReadAsStreamAsync(cancellationToken).NoSync();
-
-            byte[] head = ArrayPool<byte>.Shared.Rent(1024);
-
-            try
-            {
-                int read = await s.ReadAsync(head, 0, 1024, cancellationToken).NoSync();
-
-                if (read == 0)
-                {
-                    LogWarning(logger, typeof(TResponse), response, ReadOnlyMemory<byte>.Empty);
-                    return (default, null);
-                }
-
-                ReadOnlySpan<byte> span = head.AsSpan(0, read);
-                bool looksJson = span.LooksLikeJson();
-
-                var ms = new MemoryStream(read + 4096);
-                if (read > 0)
-                    ms.Write(head, 0, read);
-
-                await s.CopyToAsync(ms, cancellationToken).NoSync();
-                ms.ToStart();
-
-                if (response.IsSuccessStatusCode && looksJson)
-                {
-                    TResponse? ok = await JsonUtil.Deserialize<TResponse>(ms, logger, cancellationToken).NoSync();
-
-                    if (ok is not null)
-                        return (ok, null);
-                }
-                else if (looksJson)
-                {
-                    ProblemDetailsDto? problem = await JsonUtil.Deserialize<ProblemDetailsDto>(ms, logger, cancellationToken).NoSync();
-                    if (problem is not null) 
-                        return (default, problem);
-                }
-
-                LogWarning(logger, typeof(TResponse), response, ReadOnlyMemory<byte>.Empty);
-                return (default, null);
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(head);
-            }
-        }
-        catch (Exception e)
-        {
-            LogError(logger, e, typeof(TResponse), response, ReadOnlyMemory<byte>.Empty);
-            return (default, null);
-        }
-    }
-
     /// <summary>OperationResult wrapper using single buffered read.</summary>
-    [Pure, MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    [Pure]
     public static async ValueTask<OperationResult<TResponse>?> ToResult<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null,
         CancellationToken cancellationToken = default)
     {
@@ -553,7 +411,7 @@ public static class HttpResponseMessageExtension
     }
 
     /// <summary>Exception-safe content->string (returns null on failure).</summary>
-    [Pure, MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    [Pure]
     public static async ValueTask<string?> ToStringSafe(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null, CancellationToken cancellationToken = default)
     {
         try
@@ -651,6 +509,7 @@ public static class HttpResponseMessageExtension
                ct.StartsWith("video/", StringComparison.OrdinalIgnoreCase) || ct.Equals("application/octet-stream", StringComparison.OrdinalIgnoreCase);
     }
 
+    [Pure]
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     private static string GetContentString(ReadOnlyMemory<byte> bytes, string? headerCharset)
     {
@@ -660,6 +519,7 @@ public static class HttpResponseMessageExtension
         return ResolveEncoding(headerCharset).GetString(bytes.Span);
     }
 
+    [Pure]
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     private static string GetContentPreview(ReadOnlyMemory<byte> bytes, string? headerCharset)
     {
@@ -667,7 +527,7 @@ public static class HttpResponseMessageExtension
             return string.Empty;
 
         // Decode no more than needed for preview. Use UTF-8 max bound for speed; mixed charsets still OK for preview.
-        int maxBytes = Math.Min(bytes.Length, Encoding.UTF8.GetMaxByteCount(_logPreviewMaxChars));
+        int maxBytes = Math.Min(bytes.Length, _logPreviewMaxBytes);
         ReadOnlyMemory<byte> slice = bytes[..maxBytes];
 
         string s = ResolveEncoding(headerCharset).GetString(slice.Span);
@@ -676,6 +536,23 @@ public static class HttpResponseMessageExtension
             return s[.._logPreviewMaxChars] + "…";
 
         return s;
+    }
+
+    [Pure]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static string? TryGetContentString(ReadOnlyMemory<byte> bytes, string? headerCharset)
+    {
+        if (bytes.Length == 0)
+            return string.Empty;
+
+        try
+        {
+            return GetContentString(bytes, headerCharset);
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static Encoding ResolveEncoding(string? charset)
