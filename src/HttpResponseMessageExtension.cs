@@ -20,6 +20,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Soenneker.Constants.UserMessages;
 
 namespace Soenneker.Extensions.HttpResponseMessage;
 
@@ -31,9 +32,6 @@ public static class HttpResponseMessageExtension
 
     // Thread-safe cache for charsets to Encoding to avoid repeated GetEncoding costs.
     private static readonly ConcurrentDictionary<string, Encoding> _encCache = new(StringComparer.OrdinalIgnoreCase);
-
-    private const string _genericErrorTitle = "Something went wrong";
-    private const string _genericErrorDetail = "We couldn't complete your request. Please try again.";
 
     /// <summary>
     /// Reads the content (only if needed for logging), logs it, then calls EnsureSuccessStatusCode.
@@ -304,7 +302,7 @@ public static class HttpResponseMessageExtension
                 LogError(logger, e, typeof(TResponse), response, ReadOnlyMemory<byte>.Empty);
 
                 // Frontend gets a generic, user-friendly error
-                return OperationResult.Fail<TResponse>(_genericErrorTitle, _genericErrorDetail, response.StatusCode);
+                return OperationResult.Fail<TResponse>(UserMessages.SomethingWentWrongTitle, UserMessages.SomethingWentWrongDetail, response.StatusCode);
             }
 
             try
@@ -316,7 +314,7 @@ public static class HttpResponseMessageExtension
                 {
                     LogWarning(logger, typeof(TResponse), response, bytes);
 
-                    return OperationResult.Fail<TResponse>(_genericErrorTitle, _genericErrorDetail, response.StatusCode);
+                    return OperationResult.Fail<TResponse>(UserMessages.SomethingWentWrongTitle, UserMessages.SomethingWentWrongDetail, response.StatusCode);
                 }
 
                 if (response.IsSuccessStatusCode)
@@ -341,13 +339,13 @@ public static class HttpResponseMessageExtension
 
                 LogWarning(logger, typeof(TResponse), response, bytes);
 
-                return OperationResult.Fail<TResponse>(_genericErrorTitle, _genericErrorDetail, response.StatusCode);
+                return OperationResult.Fail<TResponse>(UserMessages.SomethingWentWrongTitle, UserMessages.SomethingWentWrongDetail, response.StatusCode);
             }
             catch (Exception e)
             {
                 LogError(logger, e, typeof(TResponse), response, bytes);
 
-                return OperationResult.Fail<TResponse>(_genericErrorTitle, _genericErrorDetail, response.StatusCode);
+                return OperationResult.Fail<TResponse>(UserMessages.SomethingWentWrongTitle, UserMessages.SomethingWentWrongDetail, response.StatusCode);
             }
         }
 
@@ -384,7 +382,7 @@ public static class HttpResponseMessageExtension
                 {
                     LogWarning(logger, typeof(TResponse), response, ReadOnlyMemory<byte>.Empty);
 
-                    return OperationResult.Fail<TResponse>(_genericErrorTitle, _genericErrorDetail, response.StatusCode);
+                    return OperationResult.Fail<TResponse>(UserMessages.SomethingWentWrongTitle, UserMessages.SomethingWentWrongDetail, response.StatusCode);
                 }
 
                 if (response.IsSuccessStatusCode)
@@ -414,7 +412,7 @@ public static class HttpResponseMessageExtension
 
                 LogWarning(logger, typeof(TResponse), response, ReadOnlyMemory<byte>.Empty);
 
-                return OperationResult.Fail<TResponse>(_genericErrorTitle, _genericErrorDetail, response.StatusCode);
+                return OperationResult.Fail<TResponse>(UserMessages.SomethingWentWrongTitle, UserMessages.SomethingWentWrongDetail, response.StatusCode);
             }
             finally
             {
@@ -425,7 +423,7 @@ public static class HttpResponseMessageExtension
         {
             LogError(logger, e, typeof(TResponse), response, ReadOnlyMemory<byte>.Empty);
 
-            return OperationResult.Fail<TResponse>(_genericErrorTitle, _genericErrorDetail, response.StatusCode);
+            return OperationResult.Fail<TResponse>(UserMessages.SomethingWentWrongTitle, UserMessages.SomethingWentWrongDetail, response.StatusCode);
         }
     }
 
