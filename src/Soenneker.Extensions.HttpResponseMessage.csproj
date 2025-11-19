@@ -39,7 +39,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Soenneker.Dtos.Results.Operation" Version="4.0.12" />
+        <PackageReference Include="Soenneker.Extensions.Dtos.ProblemDetails" Version="3.0.2" />
         <PackageReference Include="Soenneker.Extensions.HttpContent" Version="4.0.738" />
         <PackageReference Include="Soenneker.Extensions.Spans.Readonly.Chars" Version="4.0.8" />
         <PackageReference Include="Soenneker.Utils.Json" Version="4.0.2365" />
