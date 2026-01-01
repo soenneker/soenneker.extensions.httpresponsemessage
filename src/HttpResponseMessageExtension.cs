@@ -138,7 +138,8 @@ public static class HttpResponseMessageExtension
                 }
 
                 // Rebuild a stream with head + remainder
-                var ms = new MemoryStream(read + 4096); // small headroom; CopyToAsync will grow if needed
+                using var ms = new MemoryStream(read + 4096); // small headroom; CopyToAsync will grow if needed
+
                 if (read > 0)
                     ms.Write(head, 0, read);
 
@@ -370,7 +371,7 @@ public static class HttpResponseMessageExtension
                 ReadOnlySpan<byte> span = head.AsSpan(0, read);
                 bool looksJson = span.LooksLikeJson();
 
-                var ms = new MemoryStream(read + 4096);
+                using var ms = new MemoryStream(read + 4096);
                 if (read > 0)
                     ms.Write(head, 0, read);
 
