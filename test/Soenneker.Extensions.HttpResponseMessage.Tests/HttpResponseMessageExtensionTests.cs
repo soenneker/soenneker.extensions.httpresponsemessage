@@ -2,13 +2,12 @@ using System.Net;
 using System.Text;
 using AwesomeAssertions;
 using Soenneker.Tests.Unit;
-using Xunit;
 
 namespace Soenneker.Extensions.HttpResponseMessage.Tests;
 
 public class HttpResponseMessageExtensionTests : UnitTest
 {
-    [Fact]
+    [Test]
     public async System.Threading.Tasks.Task ToWithString_ReturnsResponseAndContent_ForValidJson()
     {
         const string json = "{\"Name\":\"Test\"}";
@@ -22,7 +21,7 @@ public class HttpResponseMessageExtensionTests : UnitTest
         content.Should().Be(json);
     }
 
-    [Fact]
+    [Test]
     public async System.Threading.Tasks.Task ToWithString_ReturnsContentAndNullResponse_ForNonJson()
     {
         const string payload = "not json";
@@ -35,7 +34,7 @@ public class HttpResponseMessageExtensionTests : UnitTest
         content.Should().Be(payload);
     }
 
-    [Fact]
+    [Test]
     public async System.Threading.Tasks.Task ToWithString_ReturnsContentWhenJsonInvalid()
     {
         const string invalidJson = "{\"Name\":\"Test\"";
@@ -48,7 +47,7 @@ public class HttpResponseMessageExtensionTests : UnitTest
         content.Should().Be(invalidJson);
     }
 
-    [Fact]
+    [Test]
     public async System.Threading.Tasks.Task ToWithString_ReturnsEmptyString_ForNoContent()
     {
         using var response = new System.Net.Http.HttpResponseMessage(HttpStatusCode.NoContent);
