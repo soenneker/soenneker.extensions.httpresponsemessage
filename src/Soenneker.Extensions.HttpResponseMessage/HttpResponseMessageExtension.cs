@@ -498,6 +498,11 @@ public static class HttpResponseMessageExtension
         logger.LogDebug("{content}", preview);
     }
 
+    /// <summary>
+    /// Executes the is no content operation.
+    /// </summary>
+    /// <param name="r">The r.</param>
+    /// <returns>A value indicating whether the operation succeeded.</returns>
     [Pure]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool IsNoContent(this System.Net.Http.HttpResponseMessage r)
@@ -511,6 +516,11 @@ public static class HttpResponseMessageExtension
         return len is 0;
     }
 
+    /// <summary>
+    /// Executes the is json operation.
+    /// </summary>
+    /// <param name="r">The r.</param>
+    /// <returns>A value indicating whether the operation succeeded.</returns>
     [Pure]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool IsJson(this System.Net.Http.HttpResponseMessage r)
@@ -521,6 +531,11 @@ public static class HttpResponseMessageExtension
                               ct.Equals("application/problem+json", StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>
+    /// Executes the is problem json operation.
+    /// </summary>
+    /// <param name="r">The r.</param>
+    /// <returns>A value indicating whether the operation succeeded.</returns>
     [Pure]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool IsProblemJson(this System.Net.Http.HttpResponseMessage r)
@@ -529,6 +544,11 @@ public static class HttpResponseMessageExtension
         return ct != null && ct.Equals("application/problem+json", StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Executes the is xml operation.
+    /// </summary>
+    /// <param name="r">The r.</param>
+    /// <returns>A value indicating whether the operation succeeded.</returns>
     [Pure]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool IsXml(this System.Net.Http.HttpResponseMessage r)
@@ -542,6 +562,11 @@ public static class HttpResponseMessageExtension
                ct.EndsWith("+xml", StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Executes the looks binary operation.
+    /// </summary>
+    /// <param name="r">The r.</param>
+    /// <returns>A value indicating whether the operation succeeded.</returns>
     [Pure]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool LooksBinary(this System.Net.Http.HttpResponseMessage r)
