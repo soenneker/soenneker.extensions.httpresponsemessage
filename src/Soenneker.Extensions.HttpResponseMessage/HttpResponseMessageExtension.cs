@@ -17,6 +17,7 @@ using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using System.Threading;
 using System.Threading.Tasks;
 using Soenneker.Streams.Prefixed;
@@ -61,8 +62,15 @@ public static class HttpResponseMessageExtension
 
     /// <summary>Exception-safe JSON to T from the response body (returns default on failure).</summary>
     [Pure]
-    public static async ValueTask<TResponse?> To<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null,
-        CancellationToken cancellationToken = default)
+    public static ValueTask<TResponse?> To<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null,
+        CancellationToken cancellationToken = default) => ToCore<TResponse>(response, null, logger, cancellationToken);
+
+    [Pure]
+    public static ValueTask<TResponse?> To<TResponse>(this System.Net.Http.HttpResponseMessage response, JsonTypeInfo<TResponse> typeInfo,
+        ILogger? logger = null, CancellationToken cancellationToken = default) => ToCore(response, typeInfo, logger, cancellationToken);
+
+    private static async ValueTask<TResponse?> ToCore<TResponse>(System.Net.Http.HttpResponseMessage response, JsonTypeInfo<TResponse>? typeInfo,
+        ILogger? logger, CancellationToken cancellationToken)
     {
         if (response.IsNoContent())
             return default;
@@ -101,7 +109,7 @@ public static class HttpResponseMessageExtension
 
             try
             {
-                if (JsonUtil.TryDeserialize(span, out TResponse? result))
+                if (JsonUtil.TryDeserialize(span, out TResponse? result, typeInfo))
                     return result;
 
                 LogWarning(logger, responseType, response, bytes);
@@ -144,8 +152,9 @@ public static class HttpResponseMessageExtension
                 // ownership transferred to prefixed stream
                 head = null!;
 
-                TResponse? result = await JsonUtil.Deserialize<TResponse>(prefixed, logger, cancellationToken)
-                                                  .NoSync();
+                TResponse? result = typeInfo is null
+                    ? await JsonUtil.Deserialize<TResponse>(prefixed, logger, cancellationToken).NoSync()
+                    : await JsonSerializer.DeserializeAsync(prefixed, typeInfo, cancellationToken).NoSync();
 
                 if (result is not null)
                     return result;
@@ -278,8 +287,16 @@ public static class HttpResponseMessageExtension
 
     /// <summary>OperationResult wrapper using single buffered read.</summary>
     [Pure]
-    public static async ValueTask<OperationResult<TResponse>> ToResult<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null,
-        CancellationToken cancellationToken = default)
+    public static ValueTask<OperationResult<TResponse>> ToResult<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null,
+        CancellationToken cancellationToken = default) => ToResultCore<TResponse>(response, null, logger, cancellationToken);
+
+    [Pure]
+    public static ValueTask<OperationResult<TResponse>> ToResult<TResponse>(this System.Net.Http.HttpResponseMessage response,
+        JsonTypeInfo<TResponse> typeInfo, ILogger? logger = null, CancellationToken cancellationToken = default) =>
+        ToResultCore(response, typeInfo, logger, cancellationToken);
+
+    private static async ValueTask<OperationResult<TResponse>> ToResultCore<TResponse>(System.Net.Http.HttpResponseMessage response,
+        JsonTypeInfo<TResponse>? typeInfo, ILogger? logger, CancellationToken cancellationToken)
     {
         if (response.IsNoContent())
             return OperationResult.Empty<TResponse>(response.StatusCode);
@@ -311,7 +328,7 @@ public static class HttpResponseMessageExtension
 
                 if (response.IsSuccessStatusCode)
                 {
-                    if (JsonUtil.TryDeserialize(span, out TResponse? ok) && ok is not null)
+                    if (JsonUtil.TryDeserialize(span, out TResponse? ok, typeInfo) && ok is not null)
                         return OperationResult.Success(ok, response.StatusCode);
                 }
                 else
@@ -369,8 +386,9 @@ public static class HttpResponseMessageExtension
 
                 if (response.IsSuccessStatusCode)
                 {
-                    TResponse? ok = await JsonUtil.Deserialize<TResponse>(prefixed, logger, cancellationToken)
-                                                  .NoSync();
+                    TResponse? ok = typeInfo is null
+                        ? await JsonUtil.Deserialize<TResponse>(prefixed, logger, cancellationToken).NoSync()
+                        : await JsonSerializer.DeserializeAsync(prefixed, typeInfo, cancellationToken).NoSync();
                     if (ok is not null)
                         return OperationResult.Success(ok, response.StatusCode);
                 }
@@ -408,8 +426,14 @@ public static class HttpResponseMessageExtension
 
     /// <summary>Strict JSON to T (throws on failure).</summary>
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-    public static async ValueTask<TResponse> ToStrict<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null,
-        CancellationToken cancellationToken = default)
+    public static ValueTask<TResponse> ToStrict<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null,
+        CancellationToken cancellationToken = default) => ToStrictCore<TResponse>(response, null, logger, cancellationToken);
+
+    public static ValueTask<TResponse> ToStrict<TResponse>(this System.Net.Http.HttpResponseMessage response, JsonTypeInfo<TResponse> typeInfo,
+        ILogger? logger = null, CancellationToken cancellationToken = default) => ToStrictCore(response, typeInfo, logger, cancellationToken);
+
+    private static async ValueTask<TResponse> ToStrictCore<TResponse>(System.Net.Http.HttpResponseMessage response, JsonTypeInfo<TResponse>? typeInfo,
+        ILogger? logger, CancellationToken cancellationToken)
     {
         if (response.IsNoContent())
             throw new JsonException($"Failed to deserialize ({typeof(TResponse).Name}) - no content");
@@ -424,7 +448,7 @@ public static class HttpResponseMessageExtension
 
             try
             {
-                if (JsonUtil.TryDeserialize(bytes.Span, out TResponse? ok) && ok is not null)
+                if (JsonUtil.TryDeserialize(bytes.Span, out TResponse? ok, typeInfo) && ok is not null)
                     return ok;
             }
             catch (Exception e)
@@ -439,8 +463,9 @@ public static class HttpResponseMessageExtension
             {
                 await using System.IO.Stream s = await response.Content.ReadAsStreamAsync(cancellationToken)
                                                                .NoSync();
-                TResponse? ok = await JsonUtil.Deserialize<TResponse>(s, logger, cancellationToken)
-                                              .NoSync();
+                TResponse? ok = typeInfo is null
+                    ? await JsonUtil.Deserialize<TResponse>(s, logger, cancellationToken).NoSync()
+                    : await JsonSerializer.DeserializeAsync(s, typeInfo, cancellationToken).NoSync();
                 if (ok is not null)
                     return ok;
             }
