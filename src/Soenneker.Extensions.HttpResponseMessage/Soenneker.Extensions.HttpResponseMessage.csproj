@@ -46,7 +46,7 @@
         <PackageReference Include="Soenneker.Extensions.Dtos.ProblemDetails" Version="4.0.53" />
         <PackageReference Include="Soenneker.Extensions.HttpContent" Version="4.0.925" />
         <PackageReference Include="Soenneker.Streams.Prefixed" Version="4.0.26" />
-        <PackageReference Include="Soenneker.Utils.Json" Version="4.0.2625" />
+        <PackageReference Include="Soenneker.Utils.Json" Version="4.0.2626" />
         <PackageReference Include="Soenneker.Utils.Xml" Version="4.0.1108" />
     </ItemGroup>
 </Project>
