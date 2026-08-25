@@ -35,6 +35,7 @@ public static class HttpResponseMessageExtension
 
     // Thread-safe cache for charsets to Encoding to avoid repeated GetEncoding costs.
     private static readonly ConcurrentDictionary<string, Encoding> _encCache = new(StringComparer.OrdinalIgnoreCase);
+    private const int _encodingCacheCapacity = 64;
 
     // Keep head small; only used for classification + replay.
     private const int _headBytesToPeek = 1024;
@@ -131,7 +132,7 @@ public static class HttpResponseMessageExtension
             byte[] head = ArrayPool<byte>.Shared.Rent(_headBytesToPeek);
             try
             {
-                int read = await s.ReadAsync(head, 0, _headBytesToPeek, cancellationToken)
+                int read = await s.ReadAsync(head.AsMemory(0, _headBytesToPeek), cancellationToken)
                                   .NoSync();
 
                 if (read == 0)
@@ -364,7 +365,7 @@ public static class HttpResponseMessageExtension
             byte[] head = ArrayPool<byte>.Shared.Rent(_headBytesToPeek);
             try
             {
-                int read = await s.ReadAsync(head, 0, _headBytesToPeek, cancellationToken)
+                int read = await s.ReadAsync(head.AsMemory(0, _headBytesToPeek), cancellationToken)
                                   .NoSync();
 
                 if (read == 0)
@@ -680,17 +681,23 @@ public static class HttpResponseMessageExtension
         if (charset.Equals("utf8", StringComparison.OrdinalIgnoreCase))
             return Encoding.UTF8;
 
-        return _encCache.GetOrAdd(charset, static key =>
+        if (_encCache.TryGetValue(charset, out Encoding? cached))
+            return cached;
+
+        Encoding encoding;
+        try
         {
-            try
-            {
-                return Encoding.GetEncoding(key);
-            }
-            catch
-            {
-                return Encoding.UTF8;
-            }
-        });
+            encoding = Encoding.GetEncoding(charset);
+        }
+        catch
+        {
+            return Encoding.UTF8;
+        }
+
+        if (_encCache.Count < _encodingCacheCapacity)
+            _encCache.TryAdd(charset, encoding);
+
+        return encoding;
     }
 
     private static bool TryDeserializeFromString<T>(string json, out T? value)
