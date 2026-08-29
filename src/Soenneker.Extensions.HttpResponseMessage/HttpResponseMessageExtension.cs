@@ -44,6 +44,7 @@ public static class HttpResponseMessageExtension
     /// Reads the content (only if needed for logging), logs it, then calls EnsureSuccessStatusCode.
     /// Useful in tests.
     /// </summary>
+    /// <returns>Reads the content (only if needed for logging), logs it, then calls EnsureSuccessStatusCode. Useful in tests.</returns>
     public static async System.Threading.Tasks.ValueTask EnsureSuccess(this System.Net.Http.HttpResponseMessage message, ILogger? logger = null,
         CancellationToken cancellationToken = default)
     {
@@ -62,10 +63,19 @@ public static class HttpResponseMessageExtension
     }
 
     /// <summary>Exception-safe JSON to T from the response body (returns default on failure).</summary>
+    /// <returns>Exception-safe JSON to T from the response body (returns default on failure).</returns>
     [Pure]
     public static ValueTask<TResponse?> To<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null,
         CancellationToken cancellationToken = default) => ToCore<TResponse>(response, null, logger, cancellationToken);
 
+    /// <summary>
+    /// Deserializes an HTTP response body when content is present; no-content responses produce null.
+    /// </summary>
+    /// <param name="response">The HTTP response to read.</param>
+    /// <param name="typeInfo">Source-generated JSON metadata for the response type.</param>
+    /// <param name="logger">An optional logger for request and conversion failures.</param>
+    /// <param name="cancellationToken">Signals that the asynchronous operation should stop.</param>
+    /// <returns>The deserialized value, or null for an empty/no-content response.</returns>
     [Pure]
     public static ValueTask<TResponse?> To<TResponse>(this System.Net.Http.HttpResponseMessage response, JsonTypeInfo<TResponse> typeInfo,
         ILogger? logger = null, CancellationToken cancellationToken = default) => ToCore(response, typeInfo, logger, cancellationToken);
@@ -177,6 +187,7 @@ public static class HttpResponseMessageExtension
     }
 
     /// <summary>Deserialize to T and also return the raw string (if needed).</summary>
+    /// <returns>Deserialize to T and also return the raw string (if needed).</returns>
     [Pure]
     public static async ValueTask<(TResponse? response, string? content)> ToWithString<TResponse>(this System.Net.Http.HttpResponseMessage response,
         ILogger? logger = null, CancellationToken cancellationToken = default)
@@ -237,6 +248,7 @@ public static class HttpResponseMessageExtension
     }
 
     /// <summary>XML deserialize to T (exception-safe, default on failure).</summary>
+    /// <returns>XML deserialize to T (exception-safe, default on failure).</returns>
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public static async ValueTask<TResponse?> ToFromXml<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null,
         CancellationToken cancellationToken = default)
@@ -287,10 +299,19 @@ public static class HttpResponseMessageExtension
     }
 
     /// <summary>OperationResult wrapper using single buffered read.</summary>
+    /// <returns>OperationResult wrapper using single buffered read.</returns>
     [Pure]
     public static ValueTask<OperationResult<TResponse>> ToResult<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null,
         CancellationToken cancellationToken = default) => ToResultCore<TResponse>(response, null, logger, cancellationToken);
 
+    /// <summary>
+    /// Converts an HTTP response into an operation result containing either the deserialized value or response error details.
+    /// </summary>
+    /// <param name="response">The HTTP response to read.</param>
+    /// <param name="typeInfo">Source-generated JSON metadata for the response type.</param>
+    /// <param name="logger">An optional logger for request and conversion failures.</param>
+    /// <param name="cancellationToken">Signals that the asynchronous operation should stop.</param>
+    /// <returns>An operation result representing the response.</returns>
     [Pure]
     public static ValueTask<OperationResult<TResponse>> ToResult<TResponse>(this System.Net.Http.HttpResponseMessage response,
         JsonTypeInfo<TResponse> typeInfo, ILogger? logger = null, CancellationToken cancellationToken = default) =>
@@ -426,10 +447,19 @@ public static class HttpResponseMessageExtension
     }
 
     /// <summary>Strict JSON to T (throws on failure).</summary>
+    /// <returns>Strict JSON to T (throws on failure).</returns>
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public static ValueTask<TResponse> ToStrict<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null,
         CancellationToken cancellationToken = default) => ToStrictCore<TResponse>(response, null, logger, cancellationToken);
 
+    /// <summary>
+    /// Requires a usable HTTP response body and deserializes it, throwing when the response cannot satisfy the requested contract.
+    /// </summary>
+    /// <param name="response">The HTTP response to read.</param>
+    /// <param name="typeInfo">Source-generated JSON metadata for the response type.</param>
+    /// <param name="logger">An optional logger for request and conversion failures.</param>
+    /// <param name="cancellationToken">Signals that the asynchronous operation should stop.</param>
+    /// <returns>The deserialized response value.</returns>
     public static ValueTask<TResponse> ToStrict<TResponse>(this System.Net.Http.HttpResponseMessage response, JsonTypeInfo<TResponse> typeInfo,
         ILogger? logger = null, CancellationToken cancellationToken = default) => ToStrictCore(response, typeInfo, logger, cancellationToken);
 
@@ -481,6 +511,7 @@ public static class HttpResponseMessageExtension
     }
 
     /// <summary>Exception-safe content->string (returns null on failure).</summary>
+    /// <returns>Exception-safe content->string (returns null on failure).</returns>
     [Pure]
     public static async ValueTask<string?> ToStringSafe(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null,
         CancellationToken cancellationToken = default)
@@ -507,11 +538,13 @@ public static class HttpResponseMessageExtension
     }
 
     /// <summary>Raw content as string (throws on failure).</summary>
+    /// <returns>Raw content as string (throws on failure).</returns>
     [Pure]
     public static Task<string> ToStringStrict(this System.Net.Http.HttpResponseMessage response, CancellationToken cancellationToken = default) =>
         response.Content.ReadAsStringAsync(cancellationToken);
 
-    /// <summary>Log response body at Debug (single read & capped).</summary>
+    /// <summary>Logs a single, size-capped read of the response body at Debug level.</summary>
+    /// <returns>Logs a single, size-capped read of the response body at Debug level.</returns>
     public static async System.Threading.Tasks.ValueTask LogResponse(this System.Net.Http.HttpResponseMessage response, ILogger logger,
         CancellationToken cancellationToken = default)
     {
@@ -525,10 +558,10 @@ public static class HttpResponseMessageExtension
     }
 
     /// <summary>
-    /// Executes the is no content operation.
+    /// Determines whether the response has no body based on its status code and content metadata.
     /// </summary>
-    /// <param name="r">The r.</param>
-    /// <returns>A value indicating whether the operation succeeded.</returns>
+    /// <param name="r">The HTTP response to inspect.</param>
+    /// <returns>True when the response is known to have no body.</returns>
     [Pure]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool IsNoContent(this System.Net.Http.HttpResponseMessage r)
@@ -543,10 +576,10 @@ public static class HttpResponseMessageExtension
     }
 
     /// <summary>
-    /// Executes the is json operation.
+    /// Determines whether the response media type represents JSON.
     /// </summary>
-    /// <param name="r">The r.</param>
-    /// <returns>A value indicating whether the operation succeeded.</returns>
+    /// <param name="r">The HTTP response to inspect.</param>
+    /// <returns>True for a JSON media type.</returns>
     [Pure]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool IsJson(this System.Net.Http.HttpResponseMessage r)
@@ -558,10 +591,10 @@ public static class HttpResponseMessageExtension
     }
 
     /// <summary>
-    /// Executes the is problem json operation.
+    /// Determines whether the response media type represents RFC 7807 problem JSON.
     /// </summary>
-    /// <param name="r">The r.</param>
-    /// <returns>A value indicating whether the operation succeeded.</returns>
+    /// <param name="r">The HTTP response to inspect.</param>
+    /// <returns>True for a problem+json media type.</returns>
     [Pure]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool IsProblemJson(this System.Net.Http.HttpResponseMessage r)
@@ -571,10 +604,10 @@ public static class HttpResponseMessageExtension
     }
 
     /// <summary>
-    /// Executes the is xml operation.
+    /// Determines whether the response media type represents XML.
     /// </summary>
-    /// <param name="r">The r.</param>
-    /// <returns>A value indicating whether the operation succeeded.</returns>
+    /// <param name="r">The HTTP response to inspect.</param>
+    /// <returns>True for an XML media type.</returns>
     [Pure]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool IsXml(this System.Net.Http.HttpResponseMessage r)
@@ -589,10 +622,10 @@ public static class HttpResponseMessageExtension
     }
 
     /// <summary>
-    /// Executes the looks binary operation.
+    /// Determines whether the response content type appears to contain binary rather than textual data.
     /// </summary>
-    /// <param name="r">The r.</param>
-    /// <returns>A value indicating whether the operation succeeded.</returns>
+    /// <param name="r">The HTTP response to inspect.</param>
+    /// <returns>True when the media type appears binary.</returns>
     [Pure]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool LooksBinary(this System.Net.Http.HttpResponseMessage r)
