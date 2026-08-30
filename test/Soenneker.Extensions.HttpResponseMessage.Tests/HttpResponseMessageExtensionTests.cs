@@ -1,5 +1,7 @@
+using System;
 using System.Net;
 using System.Text;
+using System.Threading;
 using AwesomeAssertions;
 using Soenneker.Tests.Unit;
 
@@ -57,6 +59,20 @@ public class HttpResponseMessageExtensionTests : UnitTest
 
         dto.Should().BeNull();
         content.Should().BeEmpty();
+    }
+
+    [Test]
+    public async System.Threading.Tasks.Task To_propagates_requested_cancellation()
+    {
+        using var response = new System.Net.Http.HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new System.Net.Http.StringContent("{\"Name\":\"Test\"}", Encoding.UTF8, "application/json")
+        };
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        await Assert.That(async () => await response.To<SampleDto>(cancellationToken: cancellation.Token))
+                    .Throws<OperationCanceledException>();
     }
 
     private sealed class SampleDto

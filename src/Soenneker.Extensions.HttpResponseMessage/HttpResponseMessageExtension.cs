@@ -83,6 +83,8 @@ public static class HttpResponseMessageExtension
     private static async ValueTask<TResponse?> ToCore<TResponse>(System.Net.Http.HttpResponseMessage response, JsonTypeInfo<TResponse>? typeInfo,
         ILogger? logger, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (response.IsNoContent())
             return default;
 
@@ -97,6 +99,10 @@ public static class HttpResponseMessageExtension
             {
                 bytes = await response.Content.GetSmallContentBytes(cancellationToken)
                                       .NoSync();
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception e)
             {
@@ -124,6 +130,10 @@ public static class HttpResponseMessageExtension
                     return result;
 
                 LogWarning(logger, responseType, response, bytes);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception e)
             {
@@ -179,6 +189,10 @@ public static class HttpResponseMessageExtension
                     ArrayPool<byte>.Shared.Return(head);
             }
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception e)
         {
             LogError(logger, e, responseType, response, ReadOnlyMemory<byte>.Empty);
@@ -192,6 +206,8 @@ public static class HttpResponseMessageExtension
     public static async ValueTask<(TResponse? response, string? content)> ToWithString<TResponse>(this System.Net.Http.HttpResponseMessage response,
         ILogger? logger = null, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (response.IsNoContent())
             return (default, string.Empty);
 
@@ -216,6 +232,10 @@ public static class HttpResponseMessageExtension
                 return (default, s);
             }
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception e)
         {
             LogError(logger, e, typeof(TResponse), response, ReadOnlyMemory<byte>.Empty);
@@ -239,6 +259,10 @@ public static class HttpResponseMessageExtension
             LogWarning(logger, typeof(TResponse), response, bytes);
             return (default, content);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception e)
         {
             content ??= TryGetContentString(bytes, charset);
@@ -253,6 +277,8 @@ public static class HttpResponseMessageExtension
     public static async ValueTask<TResponse?> ToFromXml<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (response.IsNoContent())
             return default;
 
@@ -265,6 +291,10 @@ public static class HttpResponseMessageExtension
                                                                .NoSync();
                 var result = XmlUtil.Deserialize<TResponse>(s);
                 return result ?? throw new NullReferenceException("XML deserialization returned null");
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception e)
             {
@@ -290,6 +320,10 @@ public static class HttpResponseMessageExtension
                 throw new NullReferenceException("XML deserialization returned null");
 
             return result;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception e)
         {
@@ -320,6 +354,8 @@ public static class HttpResponseMessageExtension
     private static async ValueTask<OperationResult<TResponse>> ToResultCore<TResponse>(System.Net.Http.HttpResponseMessage response,
         JsonTypeInfo<TResponse>? typeInfo, ILogger? logger, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (response.IsNoContent())
             return OperationResult.Empty<TResponse>(response.StatusCode);
 
@@ -331,6 +367,10 @@ public static class HttpResponseMessageExtension
             {
                 bytes = await response.Content.GetSmallContentBytes(cancellationToken)
                                       .NoSync();
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception e)
             {
@@ -369,6 +409,10 @@ public static class HttpResponseMessageExtension
 
                 LogWarning(logger, typeof(TResponse), response, bytes);
                 return OperationResult.Fail<TResponse>(UserMessages.SomethingWentWrongTitle, UserMessages.SomethingWentWrongDetail, response.StatusCode);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception e)
             {
@@ -439,6 +483,10 @@ public static class HttpResponseMessageExtension
                     ArrayPool<byte>.Shared.Return(head);
             }
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception e)
         {
             LogError(logger, e, typeof(TResponse), response, ReadOnlyMemory<byte>.Empty);
@@ -466,6 +514,8 @@ public static class HttpResponseMessageExtension
     private static async ValueTask<TResponse> ToStrictCore<TResponse>(System.Net.Http.HttpResponseMessage response, JsonTypeInfo<TResponse>? typeInfo,
         ILogger? logger, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (response.IsNoContent())
             throw new JsonException($"Failed to deserialize ({typeof(TResponse).Name}) - no content");
 
@@ -481,6 +531,10 @@ public static class HttpResponseMessageExtension
             {
                 if (JsonUtil.TryDeserialize(bytes.Span, out TResponse? ok, typeInfo) && ok is not null)
                     return ok;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception e)
             {
@@ -500,6 +554,10 @@ public static class HttpResponseMessageExtension
                 if (ok is not null)
                     return ok;
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception e)
             {
                 LogError(logger, e, typeof(TResponse), response, ReadOnlyMemory<byte>.Empty);
@@ -516,6 +574,8 @@ public static class HttpResponseMessageExtension
     public static async ValueTask<string?> ToStringSafe(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         try
         {
             if (response.LooksBinary())
@@ -529,6 +589,10 @@ public static class HttpResponseMessageExtension
                                      .NoSync();
 
             return GetContentString(bytes, response.Content.Headers.ContentType?.CharSet);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception e)
         {
