@@ -2,7 +2,6 @@
 using Soenneker.Constants.UserMessages;
 using Soenneker.Dtos.ProblemDetails;
 using Soenneker.Dtos.Results.Operation;
-using Soenneker.Extensions.Dtos.ProblemDetails;
 using Soenneker.Extensions.HttpContent;
 using Soenneker.Extensions.Spans.Readonly.Bytes;
 using Soenneker.Extensions.String;
@@ -397,12 +396,10 @@ public static class HttpResponseMessageExtension
                 {
                     if (JsonUtil.TryDeserialize(span, out ProblemDetailsDto? problem) && problem is not null)
                     {
-                        var baseResult = problem.ToOperationResult(response.StatusCode);
-
                         return new OperationResult<TResponse>
                         {
-                            Problem = baseResult.Problem,
-                            StatusCode = baseResult.StatusCode
+                            Problem = problem,
+                            StatusCode = (int)response.StatusCode
                         };
                     }
                 }
@@ -464,12 +461,10 @@ public static class HttpResponseMessageExtension
                                                                .NoSync();
                     if (problem is not null)
                     {
-                        var baseResult = problem.ToOperationResult(response.StatusCode);
-
                         return new OperationResult<TResponse>
                         {
-                            Problem = baseResult.Problem,
-                            StatusCode = baseResult.StatusCode
+                            Problem = problem,
+                            StatusCode = (int)response.StatusCode
                         };
                     }
                 }
