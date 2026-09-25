@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using Soenneker.Constants.UserMessages;
 using Soenneker.Dtos.ProblemDetails;
 using Soenneker.Dtos.Results.Operation;
@@ -61,12 +61,6 @@ public static class HttpResponseMessageExtension
         message.EnsureSuccessStatusCode();
     }
 
-    /// <summary>Exception-safe JSON to T from the response body (returns default on failure).</summary>
-    /// <returns>Exception-safe JSON to T from the response body (returns default on failure).</returns>
-    [Pure]
-    public static ValueTask<TResponse?> To<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null,
-        CancellationToken cancellationToken = default) => ToCore<TResponse>(response, null, logger, cancellationToken);
-
     /// <summary>
     /// Deserializes an HTTP response body when content is present; no-content responses produce null.
     /// </summary>
@@ -79,9 +73,10 @@ public static class HttpResponseMessageExtension
     public static ValueTask<TResponse?> To<TResponse>(this System.Net.Http.HttpResponseMessage response, JsonTypeInfo<TResponse> typeInfo,
         ILogger? logger = null, CancellationToken cancellationToken = default) => ToCore(response, typeInfo, logger, cancellationToken);
 
-    private static async ValueTask<TResponse?> ToCore<TResponse>(System.Net.Http.HttpResponseMessage response, JsonTypeInfo<TResponse>? typeInfo,
+    private static async ValueTask<TResponse?> ToCore<TResponse>(System.Net.Http.HttpResponseMessage response, JsonTypeInfo<TResponse> typeInfo,
         ILogger? logger, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(typeInfo);
         cancellationToken.ThrowIfCancellationRequested();
 
         if (response.IsNoContent())
@@ -172,9 +167,7 @@ public static class HttpResponseMessageExtension
                 // ownership transferred to prefixed stream
                 head = null!;
 
-                TResponse? result = typeInfo is null
-                    ? await JsonUtil.Deserialize<TResponse>(prefixed, logger, cancellationToken).NoSync()
-                    : await JsonSerializer.DeserializeAsync(prefixed, typeInfo, cancellationToken).NoSync();
+                TResponse? result = await JsonSerializer.DeserializeAsync(prefixed, typeInfo, cancellationToken).NoSync();
 
                 if (result is not null)
                     return result;
@@ -201,10 +194,12 @@ public static class HttpResponseMessageExtension
 
     /// <summary>Deserialize to T and also return the raw string (if needed).</summary>
     /// <returns>Deserialize to T and also return the raw string (if needed).</returns>
+    /// <param name="typeInfo">Source-generated JSON metadata and serialization options for the value.</param>
     [Pure]
-    public static async ValueTask<(TResponse? response, string? content)> ToWithString<TResponse>(this System.Net.Http.HttpResponseMessage response,
+    public static async ValueTask<(TResponse? response, string? content)> ToWithString<TResponse>(this System.Net.Http.HttpResponseMessage response, JsonTypeInfo<TResponse> typeInfo,
         ILogger? logger = null, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(typeInfo);
         cancellationToken.ThrowIfCancellationRequested();
 
         if (response.IsNoContent())
@@ -224,7 +219,7 @@ public static class HttpResponseMessageExtension
                 string s = await response.Content.ReadAsStringAsync(cancellationToken)
                                          .NoSync();
 
-                if (TryDeserializeFromString(s, out TResponse? fromString))
+                if (TryDeserializeFromString(s, typeInfo, out TResponse? fromString))
                     return (fromString, s);
 
                 LogWarning(logger, typeof(TResponse), response, ReadOnlyMemory<byte>.Empty);
@@ -252,7 +247,7 @@ public static class HttpResponseMessageExtension
             // We must return string anyway, so decode once.
             content = GetContentString(bytes, charset);
 
-            if (looksJson && JsonUtil.TryDeserialize(span, out TResponse? r) && r is not null)
+            if (looksJson && JsonUtil.TryDeserialize(span, out TResponse? r, typeInfo) && r is not null)
                 return (r, content);
 
             LogWarning(logger, typeof(TResponse), response, bytes);
@@ -331,12 +326,6 @@ public static class HttpResponseMessageExtension
         }
     }
 
-    /// <summary>OperationResult wrapper using single buffered read.</summary>
-    /// <returns>OperationResult wrapper using single buffered read.</returns>
-    [Pure]
-    public static ValueTask<OperationResult<TResponse>> ToResult<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null,
-        CancellationToken cancellationToken = default) => ToResultCore<TResponse>(response, null, logger, cancellationToken);
-
     /// <summary>
     /// Converts an HTTP response into an operation result containing either the deserialized value or response error details.
     /// </summary>
@@ -351,8 +340,9 @@ public static class HttpResponseMessageExtension
         ToResultCore(response, typeInfo, logger, cancellationToken);
 
     private static async ValueTask<OperationResult<TResponse>> ToResultCore<TResponse>(System.Net.Http.HttpResponseMessage response,
-        JsonTypeInfo<TResponse>? typeInfo, ILogger? logger, CancellationToken cancellationToken)
+        JsonTypeInfo<TResponse> typeInfo, ILogger? logger, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(typeInfo);
         cancellationToken.ThrowIfCancellationRequested();
 
         if (response.IsNoContent())
@@ -394,7 +384,7 @@ public static class HttpResponseMessageExtension
                 }
                 else
                 {
-                    if (JsonUtil.TryDeserialize(span, out ProblemDetailsDto? problem) && problem is not null)
+                    if (JsonUtil.TryDeserialize(span, out ProblemDetailsDto? problem, LibraryJsonContext.Get<ProblemDetailsDto>()) && problem is not null)
                     {
                         return new OperationResult<TResponse>
                         {
@@ -449,15 +439,13 @@ public static class HttpResponseMessageExtension
 
                 if (response.IsSuccessStatusCode)
                 {
-                    TResponse? ok = typeInfo is null
-                        ? await JsonUtil.Deserialize<TResponse>(prefixed, logger, cancellationToken).NoSync()
-                        : await JsonSerializer.DeserializeAsync(prefixed, typeInfo, cancellationToken).NoSync();
+                    TResponse? ok = await JsonSerializer.DeserializeAsync(prefixed, typeInfo, cancellationToken).NoSync();
                     if (ok is not null)
                         return OperationResult.Success(ok, response.StatusCode);
                 }
                 else
                 {
-                    ProblemDetailsDto? problem = await JsonUtil.Deserialize<ProblemDetailsDto>(prefixed, logger, cancellationToken)
+                    ProblemDetailsDto? problem = await JsonUtil.Deserialize<ProblemDetailsDto>(prefixed, LibraryJsonContext.Get<ProblemDetailsDto>(), logger, cancellationToken)
                                                                .NoSync();
                     if (problem is not null)
                     {
@@ -489,12 +477,6 @@ public static class HttpResponseMessageExtension
         }
     }
 
-    /// <summary>Strict JSON to T (throws on failure).</summary>
-    /// <returns>Strict JSON to T (throws on failure).</returns>
-    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-    public static ValueTask<TResponse> ToStrict<TResponse>(this System.Net.Http.HttpResponseMessage response, ILogger? logger = null,
-        CancellationToken cancellationToken = default) => ToStrictCore<TResponse>(response, null, logger, cancellationToken);
-
     /// <summary>
     /// Requires a usable HTTP response body and deserializes it, throwing when the response cannot satisfy the requested contract.
     /// </summary>
@@ -506,9 +488,10 @@ public static class HttpResponseMessageExtension
     public static ValueTask<TResponse> ToStrict<TResponse>(this System.Net.Http.HttpResponseMessage response, JsonTypeInfo<TResponse> typeInfo,
         ILogger? logger = null, CancellationToken cancellationToken = default) => ToStrictCore(response, typeInfo, logger, cancellationToken);
 
-    private static async ValueTask<TResponse> ToStrictCore<TResponse>(System.Net.Http.HttpResponseMessage response, JsonTypeInfo<TResponse>? typeInfo,
+    private static async ValueTask<TResponse> ToStrictCore<TResponse>(System.Net.Http.HttpResponseMessage response, JsonTypeInfo<TResponse> typeInfo,
         ILogger? logger, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(typeInfo);
         cancellationToken.ThrowIfCancellationRequested();
 
         if (response.IsNoContent())
@@ -543,9 +526,7 @@ public static class HttpResponseMessageExtension
             {
                 await using System.IO.Stream s = await response.Content.ReadAsStreamAsync(cancellationToken)
                                                                .NoSync();
-                TResponse? ok = typeInfo is null
-                    ? await JsonUtil.Deserialize<TResponse>(s, logger, cancellationToken).NoSync()
-                    : await JsonSerializer.DeserializeAsync(s, typeInfo, cancellationToken).NoSync();
+                TResponse? ok = await JsonSerializer.DeserializeAsync(s, typeInfo, cancellationToken).NoSync();
                 if (ok is not null)
                     return ok;
             }
@@ -792,11 +773,11 @@ public static class HttpResponseMessageExtension
         return encoding;
     }
 
-    private static bool TryDeserializeFromString<T>(string json, out T? value)
+    private static bool TryDeserializeFromString<T>(string json, JsonTypeInfo<T> typeInfo, out T? value)
     {
         try
         {
-            value = JsonSerializer.Deserialize<T>(json);
+            value = JsonSerializer.Deserialize(json, typeInfo);
             return value is not null;
         }
         catch

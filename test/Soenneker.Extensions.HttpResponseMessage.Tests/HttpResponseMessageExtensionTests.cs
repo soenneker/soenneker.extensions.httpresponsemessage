@@ -16,7 +16,7 @@ public class HttpResponseMessageExtensionTests : UnitTest
         using var response = new System.Net.Http.HttpResponseMessage(HttpStatusCode.OK);
         response.Content = new System.Net.Http.StringContent(json, Encoding.UTF8, "application/json");
 
-        (SampleDto? dto, string? content) = await response.ToWithString<SampleDto>();
+        (SampleDto? dto, string? content) = await response.ToWithString<SampleDto>(TestJsonContext.Get<SampleDto>());
 
         dto.Should().NotBeNull();
         dto!.Name.Should().Be("Test");
@@ -30,7 +30,7 @@ public class HttpResponseMessageExtensionTests : UnitTest
         using var response = new System.Net.Http.HttpResponseMessage(HttpStatusCode.OK);
         response.Content = new System.Net.Http.StringContent(payload, Encoding.UTF8, "text/plain");
 
-        (SampleDto? dto, string? content) = await response.ToWithString<SampleDto>();
+        (SampleDto? dto, string? content) = await response.ToWithString<SampleDto>(TestJsonContext.Get<SampleDto>());
 
         dto.Should().BeNull();
         content.Should().Be(payload);
@@ -43,7 +43,7 @@ public class HttpResponseMessageExtensionTests : UnitTest
         using var response = new System.Net.Http.HttpResponseMessage(HttpStatusCode.OK);
         response.Content = new System.Net.Http.StringContent(invalidJson, Encoding.UTF8, "application/json");
 
-        (SampleDto? dto, string? content) = await response.ToWithString<SampleDto>();
+        (SampleDto? dto, string? content) = await response.ToWithString<SampleDto>(TestJsonContext.Get<SampleDto>());
 
         dto.Should().BeNull();
         content.Should().Be(invalidJson);
@@ -55,7 +55,7 @@ public class HttpResponseMessageExtensionTests : UnitTest
         using var response = new System.Net.Http.HttpResponseMessage(HttpStatusCode.NoContent);
         response.Content = new System.Net.Http.StringContent(string.Empty, Encoding.UTF8, "application/json");
 
-        (SampleDto? dto, string? content) = await response.ToWithString<SampleDto>();
+        (SampleDto? dto, string? content) = await response.ToWithString<SampleDto>(TestJsonContext.Get<SampleDto>());
 
         dto.Should().BeNull();
         content.Should().BeEmpty();
@@ -71,11 +71,11 @@ public class HttpResponseMessageExtensionTests : UnitTest
         using var cancellation = new CancellationTokenSource();
         await cancellation.CancelAsync();
 
-        await Assert.That(async () => await response.To<SampleDto>(cancellationToken: cancellation.Token))
+        await Assert.That(async () => await response.To<SampleDto>(TestJsonContext.Get<SampleDto>(), cancellationToken: cancellation.Token))
                     .Throws<OperationCanceledException>();
     }
 
-    private sealed class SampleDto
+    public sealed class SampleDto
     {
         public string? Name { get; set; }
     }
