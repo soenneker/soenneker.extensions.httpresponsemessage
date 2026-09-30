@@ -10,7 +10,7 @@ namespace Soenneker.Extensions.HttpResponseMessage.Tests;
 public class HttpResponseMessageExtensionTests : UnitTest
 {
     [Test]
-    public async System.Threading.Tasks.Task ToWithString_ReturnsResponseAndContent_ForValidJson()
+    public async System.Threading.Tasks.ValueTask ToWithString_ReturnsResponseAndContent_ForValidJson()
     {
         const string json = "{\"Name\":\"Test\"}";
         using var response = new System.Net.Http.HttpResponseMessage(HttpStatusCode.OK);
@@ -24,7 +24,7 @@ public class HttpResponseMessageExtensionTests : UnitTest
     }
 
     [Test]
-    public async System.Threading.Tasks.Task ToWithString_ReturnsContentAndNullResponse_ForNonJson()
+    public async System.Threading.Tasks.ValueTask ToWithString_ReturnsContentAndNullResponse_ForNonJson()
     {
         const string payload = "not json";
         using var response = new System.Net.Http.HttpResponseMessage(HttpStatusCode.OK);
@@ -37,7 +37,7 @@ public class HttpResponseMessageExtensionTests : UnitTest
     }
 
     [Test]
-    public async System.Threading.Tasks.Task ToWithString_ReturnsContentWhenJsonInvalid()
+    public async System.Threading.Tasks.ValueTask ToWithString_ReturnsContentWhenJsonInvalid()
     {
         const string invalidJson = "{\"Name\":\"Test\"";
         using var response = new System.Net.Http.HttpResponseMessage(HttpStatusCode.OK);
@@ -50,7 +50,7 @@ public class HttpResponseMessageExtensionTests : UnitTest
     }
 
     [Test]
-    public async System.Threading.Tasks.Task ToWithString_ReturnsEmptyString_ForNoContent()
+    public async System.Threading.Tasks.ValueTask ToWithString_ReturnsEmptyString_ForNoContent()
     {
         using var response = new System.Net.Http.HttpResponseMessage(HttpStatusCode.NoContent);
         response.Content = new System.Net.Http.StringContent(string.Empty, Encoding.UTF8, "application/json");
@@ -62,7 +62,7 @@ public class HttpResponseMessageExtensionTests : UnitTest
     }
 
     [Test]
-    public async System.Threading.Tasks.Task To_propagates_requested_cancellation()
+    public async System.Threading.Tasks.ValueTask To_propagates_requested_cancellation()
     {
         using var response = new System.Net.Http.HttpResponseMessage(HttpStatusCode.OK)
         {
