@@ -10,13 +10,13 @@ namespace Soenneker.Extensions.HttpResponseMessage.Tests;
 public class HttpResponseMessageExtensionTests : UnitTest
 {
     [Test]
-    public async System.Threading.Tasks.ValueTask ToWithString_ReturnsResponseAndContent_ForValidJson()
+    public async System.Threading.Tasks.ValueTask ToWithString_ReturnsResponseAndContent_ForValidJson(CancellationToken cancellationToken)
     {
         const string json = "{\"Name\":\"Test\"}";
         using var response = new System.Net.Http.HttpResponseMessage(HttpStatusCode.OK);
         response.Content = new System.Net.Http.StringContent(json, Encoding.UTF8, "application/json");
 
-        (SampleDto? dto, string? content) = await response.ToWithString<SampleDto>(TestJsonContext.Get<SampleDto>());
+        (SampleDto? dto, string? content) = await response.ToWithString<SampleDto>(TestJsonContext.Get<SampleDto>(), cancellationToken: cancellationToken);
 
         dto.Should().NotBeNull();
         dto!.Name.Should().Be("Test");
@@ -24,45 +24,45 @@ public class HttpResponseMessageExtensionTests : UnitTest
     }
 
     [Test]
-    public async System.Threading.Tasks.ValueTask ToWithString_ReturnsContentAndNullResponse_ForNonJson()
+    public async System.Threading.Tasks.ValueTask ToWithString_ReturnsContentAndNullResponse_ForNonJson(CancellationToken cancellationToken)
     {
         const string payload = "not json";
         using var response = new System.Net.Http.HttpResponseMessage(HttpStatusCode.OK);
         response.Content = new System.Net.Http.StringContent(payload, Encoding.UTF8, "text/plain");
 
-        (SampleDto? dto, string? content) = await response.ToWithString<SampleDto>(TestJsonContext.Get<SampleDto>());
+        (SampleDto? dto, string? content) = await response.ToWithString<SampleDto>(TestJsonContext.Get<SampleDto>(), cancellationToken: cancellationToken);
 
         dto.Should().BeNull();
         content.Should().Be(payload);
     }
 
     [Test]
-    public async System.Threading.Tasks.ValueTask ToWithString_ReturnsContentWhenJsonInvalid()
+    public async System.Threading.Tasks.ValueTask ToWithString_ReturnsContentWhenJsonInvalid(CancellationToken cancellationToken)
     {
         const string invalidJson = "{\"Name\":\"Test\"";
         using var response = new System.Net.Http.HttpResponseMessage(HttpStatusCode.OK);
         response.Content = new System.Net.Http.StringContent(invalidJson, Encoding.UTF8, "application/json");
 
-        (SampleDto? dto, string? content) = await response.ToWithString<SampleDto>(TestJsonContext.Get<SampleDto>());
+        (SampleDto? dto, string? content) = await response.ToWithString<SampleDto>(TestJsonContext.Get<SampleDto>(), cancellationToken: cancellationToken);
 
         dto.Should().BeNull();
         content.Should().Be(invalidJson);
     }
 
     [Test]
-    public async System.Threading.Tasks.ValueTask ToWithString_ReturnsEmptyString_ForNoContent()
+    public async System.Threading.Tasks.ValueTask ToWithString_ReturnsEmptyString_ForNoContent(CancellationToken cancellationToken)
     {
         using var response = new System.Net.Http.HttpResponseMessage(HttpStatusCode.NoContent);
         response.Content = new System.Net.Http.StringContent(string.Empty, Encoding.UTF8, "application/json");
 
-        (SampleDto? dto, string? content) = await response.ToWithString<SampleDto>(TestJsonContext.Get<SampleDto>());
+        (SampleDto? dto, string? content) = await response.ToWithString<SampleDto>(TestJsonContext.Get<SampleDto>(), cancellationToken: cancellationToken);
 
         dto.Should().BeNull();
         content.Should().BeEmpty();
     }
 
     [Test]
-    public async System.Threading.Tasks.ValueTask To_propagates_requested_cancellation()
+    public async System.Threading.Tasks.ValueTask To_propagates_requested_cancellation(CancellationToken cancellationToken)
     {
         using var response = new System.Net.Http.HttpResponseMessage(HttpStatusCode.OK)
         {
