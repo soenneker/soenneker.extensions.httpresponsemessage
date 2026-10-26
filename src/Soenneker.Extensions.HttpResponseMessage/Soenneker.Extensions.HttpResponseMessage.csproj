@@ -44,13 +44,13 @@
 
     <ItemGroup>
         <PackageReference Include="Soenneker.Constants.UserMessages" Version="11.0.35" />
-        <PackageReference Include="Soenneker.Extensions.HttpContent" Version="11.0.1018" />
-        <PackageReference Include="Soenneker.Streams.Prefixed" Version="4.0.52" />
-        <PackageReference Include="Soenneker.Utils.Json" Version="11.0.2761" />
+        <PackageReference Include="Soenneker.Extensions.HttpContent" Version="11.0.1019" />
+        <PackageReference Include="Soenneker.Streams.Prefixed" Version="11.0.53" />
+        <PackageReference Include="Soenneker.Utils.Json" Version="11.0.2762" />
         <PackageReference Include="Soenneker.Utils.Xml" Version="11.0.1178" />
     </ItemGroup>
     <ItemGroup>
         <PackageReference Include="Soenneker.Dtos.ProblemDetails" Version="11.0.482" />
-        <PackageReference Include="Soenneker.Dtos.Results.Operation" Version="11.0.83" />
+        <PackageReference Include="Soenneker.Dtos.Results.Operation" Version="11.0.84" />
     </ItemGroup>
 </Project>
