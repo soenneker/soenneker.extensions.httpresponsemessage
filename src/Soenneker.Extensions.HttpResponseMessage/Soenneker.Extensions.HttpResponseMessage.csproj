@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <TargetFramework>net10.0</TargetFramework>
+        <TargetFramework>net11.0</TargetFramework>
         <Nullable>enable</Nullable>
         <IsAotCompatible>true</IsAotCompatible>
         <Platforms>AnyCPU</Platforms>
@@ -9,7 +9,7 @@
 
     <PropertyGroup>
         <Description>A collection of helpful HttpResponseMessage extension methods</Description>
-        <Version Condition="'$(BUILD_VERSION)' == ''">4.0.0</Version>
+        <Version Condition="'$(BUILD_VERSION)' == ''">11.0.0</Version>
         <Version Condition="'$(BUILD_VERSION)' != ''">$(BUILD_VERSION)</Version>
         <AssemblyName>Soenneker.Extensions.HttpResponseMessage</AssemblyName>
         <PackageId>Soenneker.Extensions.HttpResponseMessage</PackageId>
@@ -44,13 +44,13 @@
 
     <ItemGroup>
         <PackageReference Include="Soenneker.Constants.UserMessages" Version="4.0.34" />
-        <PackageReference Include="Soenneker.Extensions.HttpContent" Version="4.0.1016" />
+        <PackageReference Include="Soenneker.Extensions.HttpContent" Version="4.0.1017" />
         <PackageReference Include="Soenneker.Streams.Prefixed" Version="4.0.52" />
         <PackageReference Include="Soenneker.Utils.Json" Version="4.0.2757" />
         <PackageReference Include="Soenneker.Utils.Xml" Version="4.0.1177" />
     </ItemGroup>
     <ItemGroup>
         <PackageReference Include="Soenneker.Dtos.ProblemDetails" Version="4.0.480" />
-        <PackageReference Include="Soenneker.Dtos.Results.Operation" Version="4.0.81" />
+        <PackageReference Include="Soenneker.Dtos.Results.Operation" Version="4.0.82" />
     </ItemGroup>
 </Project>
