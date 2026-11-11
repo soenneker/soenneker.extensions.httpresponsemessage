@@ -45,11 +45,11 @@
     <ItemGroup>
         <PackageReference Include="Soenneker.Constants.UserMessages" Version="11.0.36" />
         <PackageReference Include="Soenneker.Extensions.HttpContent" Version="11.0.1035" />
-        <PackageReference Include="Soenneker.Streams.Prefixed" Version="11.0.56" />
-        <PackageReference Include="Soenneker.Utils.Json" Version="11.0.2783" />
+        <PackageReference Include="Soenneker.Streams.Prefixed" Version="11.0.57" />
+        <PackageReference Include="Soenneker.Utils.Json" Version="11.0.2784" />
         <PackageReference Include="Soenneker.Utils.Xml" Version="11.0.1191" />
     </ItemGroup>
     <ItemGroup>
-        <PackageReference Include="Soenneker.Dtos.Results.Operation" Version="11.0.87" />
+        <PackageReference Include="Soenneker.Dtos.Results.Operation" Version="11.0.88" />
     </ItemGroup>
 </Project>
