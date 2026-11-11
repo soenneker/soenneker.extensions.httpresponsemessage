@@ -50,6 +50,6 @@
         <PackageReference Include="Soenneker.Utils.Xml" Version="11.0.1189" />
     </ItemGroup>
     <ItemGroup>
-        <PackageReference Include="Soenneker.Dtos.Results.Operation" Version="11.0.86" />
+        <PackageReference Include="Soenneker.Dtos.Results.Operation" Version="11.0.87" />
     </ItemGroup>
 </Project>
